@@ -84,7 +84,7 @@ jobs:
             ${{ steps.process-trx.outputs.test-results-file-path }}
           retention-days: 90
 
-  build-and-publish:
+  create_nuget:
     needs: integration-tests
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master' && success()
@@ -109,6 +109,39 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: ${{ env.NuGetDirectory }}/*.nupkg
+
+  validate_nuget:
+    runs-on: ubuntu-latest
+    needs: [ create_nuget, integration-tests ]
+    steps:
+      # Install the .NET SDK indicated in the global.json file
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+
+    - uses: actions/download-artifact@v3
+      with:
+          name: nuget
+          path: ${{ env.NuGetDirectory }}
+    - name: Install nuget validator
+      run: dotnet tool update Meziantou.Framework.NuGetPackageValidation.Tool --global
+          
+  deploy:
+    # Publish only when creating a GitHub Release
+    # https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository
+    # You can update this logic if you want to manage releases differently
+     if: github.event_name == 'release'
+     runs-on: ubuntu-latest
+     needs: [ validate_nuget, integration-tests ]
+     steps:
+      # Download the NuGet package created in the previous job
+      - uses: actions/download-artifact@v3
+        with:
+          name: nuget
+          path: ${{ env.NuGetDirectory }}
+
+      # Install the .NET SDK indicated in the global.json file
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
 
       - name: Publish NuGet package
         run: |
