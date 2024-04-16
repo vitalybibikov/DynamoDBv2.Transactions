@@ -22,10 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.301.13" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\DynamoDBv2.Transactions.csproj" />
   </ItemGroup>
 </Project>
