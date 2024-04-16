@@ -11,7 +11,6 @@
     <RepositoryUrl>https://github.com/vitalybibikov/DynamoDBv2.Transactions</RepositoryUrl>
     <RepositoryType>GitHub</RepositoryType>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <AssemblyName>DynamoDBv2.Transactions</AssemblyName>
 
   </PropertyGroup>
