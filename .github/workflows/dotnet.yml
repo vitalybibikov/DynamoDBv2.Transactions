@@ -25,8 +25,11 @@ jobs:
           docker-compose build
 
       - name: Run tests
-        run: docker-compose up --exit-code-from tests
+        run: docker-compose up --exit-code-from tests tests localstack
 
+      - name: Run tests
+        run: docker-compose up --exit-code-from unittests unittests
+        
       - name: Upload TRX test results
         uses: actions/upload-artifact@v2
         if: always()  # This ensures it runs even if the previous steps fail
