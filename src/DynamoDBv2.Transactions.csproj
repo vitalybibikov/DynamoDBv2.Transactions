@@ -4,7 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>3.7.301.13</Version>
+    <Version>3.7.0</Version>
     <Copyright>vitalybibikov</Copyright>
     <PackageTags>DynamoDB Transactions AWSSDK.DynamoDBv2 AWS Amazon aws-sdk-v3 extensions</PackageTags>
     <PackageProjectUrl>https://github.com/vitalybibikov/DynamoDBv2.Transactions</PackageProjectUrl>
@@ -13,6 +13,7 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <AssemblyName>DynamoDBv2.Transactions</AssemblyName>
+
   </PropertyGroup>
 
   <PropertyGroup>
@@ -39,7 +40,9 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.301.13" />
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.301.13" >
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
@@ -49,8 +52,16 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
   <PropertyGroup>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
 </Project>
