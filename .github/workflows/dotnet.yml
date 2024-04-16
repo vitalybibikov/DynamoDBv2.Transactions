@@ -37,4 +37,4 @@ jobs:
         id: trx-parser
         with:
           TRX_PATH: ${{ github.workspace }}/test-results #This should be the path to your TRX files
-          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
+          REPO_TOKEN: ${{ secrets.TRX_ACTIONS_TOKEN }}  
