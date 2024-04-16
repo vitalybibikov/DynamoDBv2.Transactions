@@ -16,7 +16,6 @@
     <EnablePackageValidation>true</EnablePackageValidation>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
