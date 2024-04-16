@@ -17,6 +17,17 @@ services:
       - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
       - './localstack:/var/lib/localstack'
       - './test-results:/app/test-results'
+  unittests:
+    environment:
+      <<: *common-variables
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+      AWS_HOST: http://localstack:4566
+    ports:
+      - 5056:8080
+    volumes:
+      - './localstack:/var/lib/localstack'
+      - './test-results:/app/test-results'
   localstack:
     environment:
       <<: *common-variables

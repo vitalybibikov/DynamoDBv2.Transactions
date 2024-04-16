@@ -9,14 +9,14 @@ using Xunit;
 
 namespace DynamoDBv2.Transactions.UnitTests
 {
-    public class TransactionManagerTests
+    public class TransactionManagerMockTests
     {
         [Fact]
         public async Task ExecuteTransactionAsync_MapsOperationsCorrectly()
         {
             // Arrange
-            var client = new Mock<AmazonDynamoDBClient>();
-            var manager = new TransactionManager(client.Object);
+            var mockAmazonDynamoDB = new Mock<IAmazonDynamoDB>();
+            var manager = new TransactionManager(mockAmazonDynamoDB.Object);
             var requests = new List<ITransactionRequest>
             {
                 new ConditionCheckTransactionRequest<SomeDynamoDbEntity>(),
@@ -30,15 +30,15 @@ namespace DynamoDBv2.Transactions.UnitTests
             var response = await manager.ExecuteTransactionAsync(requests);
 
             // Assert
-            client.Verify(c => c.TransactWriteItemsAsync(It.IsAny<TransactWriteItemsRequest>(), CancellationToken.None), Times.Once());
+            mockAmazonDynamoDB.Verify(c => c.TransactWriteItemsAsync(It.IsAny<TransactWriteItemsRequest>(), CancellationToken.None), Times.Once());
         }
 
         [Fact]
         public async Task ExecuteTransactionAsync_AllItemsPassedToEnd()
         {
             // Arrange
-            var client = new Mock<AmazonDynamoDBClient>();
-            var manager = new TransactionManager(client.Object);
+            var mockAmazonDynamoDB = new Mock<IAmazonDynamoDB>();
+            var manager = new TransactionManager(mockAmazonDynamoDB.Object);
             var requests = new List<ITransactionRequest>
             {
                 new ConditionCheckTransactionRequest<SomeDynamoDbEntity>(),
@@ -52,7 +52,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             await manager.ExecuteTransactionAsync(requests);
 
             // Assert
-            client.Verify(x => x.TransactWriteItemsAsync(It.Is<TransactWriteItemsRequest>(req =>
+            mockAmazonDynamoDB.Verify(x => x.TransactWriteItemsAsync(It.Is<TransactWriteItemsRequest>(req =>
                     req.TransactItems.Count == 5 &&
                     req.TransactItems[0].ConditionCheck != null &&
                     req.TransactItems[1].Delete != null &&
