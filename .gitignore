@@ -437,3 +437,4 @@ $RECYCLE.BIN/
 tmp.txt
 comm.txt
 .vscode
+*.snupkg
