@@ -47,7 +47,6 @@ jobs:
           TRX_PATH: ${{ github.workspace }}/test-results #This should be the path to your TRX files
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
 
-
       - name: Process trx reports
         id: process-trx
         # You may also reference just the major or major.minor version
@@ -77,3 +76,26 @@ jobs:
             ${{ steps.process-trx.outputs.test-results-file-path }}
           retention-days: 90
 
+  build-and-publish:
+    needs: integration-tests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' && success()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build and Pack
+        run: |
+          dotnet build src/DynamoDBv2.Transactions.csproj --configuration Release
+          dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ./nupkgs /p:Version=3.7.$GITHUB_RUN_NUMBER
+
+      - name: Publish NuGet Package
+        uses: rohith/publish-nuget@v2
+        with:
+          package_path: ./nupkgs/*.nupkg
+          nuget_key: ${{ secrets.NUGET_PUSH_KEY }}
