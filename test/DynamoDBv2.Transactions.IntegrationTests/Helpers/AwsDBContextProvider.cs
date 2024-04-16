@@ -16,12 +16,25 @@ namespace DynamoDBv2.Transactions.IntegrationTests.Helpers
 
         private AmazonDynamoDBClient GetDbClient()
         {
-            var config = new AmazonDynamoDBConfig
-            {
-                ServiceURL = "http://127.0.0.1:4566"
-            };
-            var client = new AmazonDynamoDBClient("dummy", "dummy", config);
+            var awsHost = Environment.GetEnvironmentVariable("AWS_HOST");
+            AmazonDynamoDBConfig config = null;;
             
+            if (!String.IsNullOrEmpty(awsHost))
+            {
+                config = new AmazonDynamoDBConfig
+                {
+                    ServiceURL = awsHost
+                };
+            }
+            else
+            {
+                config = new AmazonDynamoDBConfig
+                {
+                    ServiceURL = "http://127.0.0.1:4566"
+                };
+            }
+
+            var client = new AmazonDynamoDBClient("dummy", "dummy", config);
             return client;
         }
     }
