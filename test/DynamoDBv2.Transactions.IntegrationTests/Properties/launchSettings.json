@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "DynamoDBv2.Transactions.IntegrationTests": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}

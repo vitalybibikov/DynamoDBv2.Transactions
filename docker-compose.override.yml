@@ -1,0 +1,26 @@
+version: '3.9'
+
+x-common-variables: &common-variables
+  'ASPNETCORE_ENVIRONMENT': Development
+
+services:
+  tests:
+    environment:
+      <<: *common-variables
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+    ports:
+      - 5055:8080
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+      - './localstack:/var/lib/localstack'
+  localstack:
+    environment:
+      <<: *common-variables
+    ports:
+        - '4566:4566'
+    volumes:
+        - './localstack:/var/lib/localstack'
+        - /var/run/docker.sock:/var/run/docker.sock
+        - ./scripts/localstack/dynamodb/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh

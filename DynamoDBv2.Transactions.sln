@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34607.119
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamoDBv2.Transactions", "src\DynamoDBv2.Transactions.csproj", "{851AFB8C-EE42-4B52-8477-790FE0B11836}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{66FA6502-7AA5-4A6C-BE78-18841D6A5125}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{8B251448-C404-4733-8587-BE8EFB8AF9F2}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamoDBv2.Transactions.UnitTests", "test\DynamoDBv2.Transactions.UnitTests\DynamoDBv2.Transactions.UnitTests.csproj", "{9CD758F7-E15A-42F4-ADFF-E55C53B34DAE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamoDBv2.Transactions.IntegrationTests", "test\DynamoDBv2.Transactions.IntegrationTests\DynamoDBv2.Transactions.IntegrationTests.csproj", "{1BDBD629-557E-41C1-AA1A-BCDE293EF0A6}"
+EndProject
+Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{07AC13F3-4DBC-4740-9F50-4900C577B715}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "scripts", "scripts", "{A282DE6D-6CF6-4F30-BC34-A1DA38A28F87}"
+	ProjectSection(SolutionItems) = preProject
+		scripts\localstack\dynamodb\init-aws.sh = scripts\localstack\dynamodb\init-aws.sh
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{851AFB8C-EE42-4B52-8477-790FE0B11836}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{851AFB8C-EE42-4B52-8477-790FE0B11836}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{851AFB8C-EE42-4B52-8477-790FE0B11836}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{851AFB8C-EE42-4B52-8477-790FE0B11836}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9CD758F7-E15A-42F4-ADFF-E55C53B34DAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9CD758F7-E15A-42F4-ADFF-E55C53B34DAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9CD758F7-E15A-42F4-ADFF-E55C53B34DAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9CD758F7-E15A-42F4-ADFF-E55C53B34DAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1BDBD629-557E-41C1-AA1A-BCDE293EF0A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1BDBD629-557E-41C1-AA1A-BCDE293EF0A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1BDBD629-557E-41C1-AA1A-BCDE293EF0A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1BDBD629-557E-41C1-AA1A-BCDE293EF0A6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07AC13F3-4DBC-4740-9F50-4900C577B715}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07AC13F3-4DBC-4740-9F50-4900C577B715}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07AC13F3-4DBC-4740-9F50-4900C577B715}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07AC13F3-4DBC-4740-9F50-4900C577B715}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{851AFB8C-EE42-4B52-8477-790FE0B11836} = {66FA6502-7AA5-4A6C-BE78-18841D6A5125}
+		{9CD758F7-E15A-42F4-ADFF-E55C53B34DAE} = {8B251448-C404-4733-8587-BE8EFB8AF9F2}
+		{1BDBD629-557E-41C1-AA1A-BCDE293EF0A6} = {8B251448-C404-4733-8587-BE8EFB8AF9F2}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4552FA47-3E49-48B6-8452-3B8E57C5FB24}
+	EndGlobalSection
+EndGlobal

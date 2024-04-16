@@ -1,0 +1,23 @@
+version: '3.9'
+
+services:
+  tests:
+    image: ${DOCKER_REGISTRY-}tests
+    build:
+      context: .
+      dockerfile: ./test/DynamoDBv2.Transactions.IntegrationTests/Dockerfile
+    depends_on:
+      - localstack
+
+  localstack:
+    container_name: localstack
+    image: localstack/localstack:latest
+    environment:
+        - DEBUG=1
+        - USE_SSL=0
+        - AWS_CBOR_DISABLE=1
+        - DOCKER_HOST=unix:///var/run/docker.sock
+        - HOSTNAME=localstack
+        - SERVICES=dynamodb
+        - AWS_DEFAULT_REGION=us-east-1
+        - CLEAR_TMP_FOLDER=1
