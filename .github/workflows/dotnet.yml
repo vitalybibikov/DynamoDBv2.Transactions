@@ -114,5 +114,5 @@ jobs:
         run: |
           for file in $(find ${NuGetDirectory} -name "*.nupkg")
           do
-                dotnet nuget push "$file" --api-key "${NUGET_PUSH_KEY}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+                dotnet nuget push "$file" --api-key "${{NUGET_PUSH_KEY}}" --source https://api.nuget.org/v3/index.json --skip-duplicate
           done
