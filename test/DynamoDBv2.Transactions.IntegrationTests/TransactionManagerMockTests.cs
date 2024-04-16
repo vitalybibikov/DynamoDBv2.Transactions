@@ -9,7 +9,7 @@ using Xunit;
 
 namespace DynamoDBv2.Transactions.UnitTests
 {
-    public class TransactionManagerTests
+    public class TransactionManagerMockTests
     {
         [Fact]
         public async Task ExecuteTransactionAsync_MapsOperationsCorrectly()
