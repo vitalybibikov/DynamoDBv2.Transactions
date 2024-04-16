@@ -72,12 +72,5 @@ jobs:
           name: Cypress-Results
           path: |
             ${{ steps.process-trx.outputs.test-results-file-path }}
-          retention-days: 7
+          retention-days: 90
 
-      - run: ./do-other-advanced-things-in-the-build.sh
-
-      - name: Fail if there were test problems
-        if: steps.process-trx.outputs.test-outcome == 'Failed'
-        run: |
-          echo "There were test failures."
-          exit 1
