@@ -8,6 +8,11 @@ services:
       dockerfile: ./test/DynamoDBv2.Transactions.IntegrationTests/Dockerfile
     depends_on:
       - localstack
+  unittests:
+    image: ${DOCKER_REGISTRY-}tests
+    build:
+      context: .
+      dockerfile: ./test/DynamoDBv2.Transactions.UnitTests/Dockerfile
 
   localstack:
     container_name: localstack
