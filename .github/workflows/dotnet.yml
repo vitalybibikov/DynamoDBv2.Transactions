@@ -103,7 +103,7 @@ jobs:
           dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=3.7.$GITHUB_RUN_NUMBER
 
       - name: Create NuGet Artifact
-      - uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3
         with:
           name: nuget
           if-no-files-found: error
