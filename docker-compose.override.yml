@@ -9,18 +9,28 @@ services:
       <<: *common-variables
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummy
+      AWS_HOST: http://localstack:4566
     ports:
       - 5055:8080
     volumes:
       - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
       - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
       - './localstack:/var/lib/localstack'
+      - './test-results:/app/test-results'
   localstack:
     environment:
       <<: *common-variables
+      DEBUG: 1
+      USE_SSL: 0
+      AWS_CBOR_DISABLE: 1
+      DOCKER_HOST: unix:///var/run/docker.sock
+      HOSTNAME: localstack
+      SERVICES: dynamodb
+      AWS_DEFAULT_REGION: us-east-1
+      CLEAR_TMP_FOLDER: 1
     ports:
         - '4566:4566'
     volumes:
         - './localstack:/var/lib/localstack'
         - /var/run/docker.sock:/var/run/docker.sock
-        - ./scripts/localstack/dynamodb/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh
+        #- ./scripts/localstack/dynamodb/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh
