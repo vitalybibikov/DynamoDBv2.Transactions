@@ -32,13 +32,9 @@ jobs:
       - name: Clean up
         run: docker-compose down
         
-      - name: Integration Tests for DynamoDB Transactions
-        uses: zyborg/dotnet-tests-report@v1
+      - name: Parse Trx files
+        uses: NasAmin/trx-parser@v0.1
+        id: trx-parser
         with:
-          project_path: ./test-results/
-          report_name: testresults.trx
-          report_title: Integration Tests
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          gist_name: contoso_business_tests.md
-          gist_badge_label: 'Contoso Business: %Counters_passed%/%Counters_total%'
-          gist_token: ${{ secrets.GIST_TOKEN }}
+          TRX_PATH: ${{ github.workspace }}/test-results #This should be the path to your TRX files
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
