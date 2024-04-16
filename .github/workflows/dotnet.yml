@@ -1,5 +1,10 @@
 name: CI
 
+permissions:
+    contents: read
+    pull-requests: write # required if create-pr-comment: true
+    checks: write       # required if create-status-check: true
+
 on:
   push:
     branches: [ "master", "development" ]
@@ -38,3 +43,41 @@ jobs:
         with:
           TRX_PATH: ${{ github.workspace }}/test-results #This should be the path to your TRX files
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
+
+
+      - name: Process trx reports
+        id: process-trx
+        # You may also reference just the major or major.minor version
+        uses: im-open/process-dotnet-test-results@v3.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          base-directory: './test-results'
+          create-status-check: true
+          create-pr-comment: true
+          update-comment-if-one-exists: true
+          ignore-test-failures: true
+          timezone: 'america/denver'
+          comment-identifier: 'bff-tests'
+
+      # Optional
+      - name: Annotate Test Outcome
+        if: steps.process-trx.outputs.test-results-truncated == 'true'
+        run: cat ${{ steps.process-trx.outputs.test-results-file-path }} > $GITHUB_STEP_SUMMARY
+
+      # Optional
+      - name: Upload Outcome as artifact if character limit reached
+        if: steps.process-trx.outputs.test-results-truncated == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cypress-Results
+          path: |
+            ${{ steps.process-trx.outputs.test-results-file-path }}
+          retention-days: 7
+
+      - run: ./do-other-advanced-things-in-the-build.sh
+
+      - name: Fail if there were test problems
+        if: steps.process-trx.outputs.test-outcome == 'Failed'
+        run: |
+          echo "There were test failures."
+          exit 1
