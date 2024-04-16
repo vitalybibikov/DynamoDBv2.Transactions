@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master", "development" ]
+  pull_request:
+    branches: [ "master", "development" ]
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Compose
+        run: |
+          docker-compose -f docker-compose.yml -f docker-compose.override.yml config
+          docker-compose pull
+          docker-compose build
+
+      - name: Run tests
+        run: docker-compose up --exit-code-from tests tests
+
+      - name: Collect test results
+        run: docker-compose logs tests > test_logs.txt
+        if: always()
+
+      - name: Clean up
+        run: docker-compose down
+
+      - name: Upload test logs
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-logs
+          path: test_logs.txt
