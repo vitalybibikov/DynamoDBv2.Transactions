@@ -5,7 +5,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Version>3.7.301.13</Version>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <Copyright>vitalybibikov</Copyright>
+    <PackageTags>DynamoDB Transactions AWSSDK.DynamoDBv2 AWS Amazon aws-sdk-v3 extensions</PackageTags>
+    <PackageProjectUrl>https://github.com/vitalybibikov/DynamoDBv2.Transactions</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/vitalybibikov/DynamoDBv2.Transactions</RepositoryUrl>
+    <RepositoryType>GitHub</RepositoryType>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <AssemblyName>DynamoDBv2.Transactions</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -34,5 +41,16 @@
   <ItemGroup>
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.301.13" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+  </PropertyGroup>
 
 </Project>
