@@ -9,7 +9,7 @@ services:
     depends_on:
       - localstack
   unittests:
-    image: ${DOCKER_REGISTRY-}tests
+    image: ${DOCKER_REGISTRY-}unittests
     build:
       context: .
       dockerfile: ./test/DynamoDBv2.Transactions.UnitTests/Dockerfile

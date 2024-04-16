@@ -6,7 +6,7 @@ using DynamoDBv2.Transactions.Requests.Contract;
 
 namespace DynamoDBv2.Transactions;
 
-public sealed class TransactionManager(AmazonDynamoDBClient client)
+public sealed class TransactionManager(IAmazonDynamoDB client)
     : ITransactionManager
 {
     public async Task<TransactWriteItemsResponse?> ExecuteTransactionAsync(IEnumerable<ITransactionRequest> requests, CancellationToken token = default)
