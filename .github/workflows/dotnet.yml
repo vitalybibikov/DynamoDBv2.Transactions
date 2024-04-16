@@ -20,17 +20,14 @@ jobs:
           docker-compose build
 
       - name: Run tests
-        run: docker-compose up --exit-code-from tests tests
+        run: docker-compose up --exit-code-from tests
 
-      - name: Collect test results
-        run: docker-compose logs tests > test_logs.txt
-        if: always()
+      - name: Upload TRX test results
+        uses: actions/upload-artifact@v2
+        if: always()  # This ensures it runs even if the previous steps fail
+        with:
+          name: trx-test-results
+          path: ./test-results/*.trx
 
       - name: Clean up
         run: docker-compose down
-
-      - name: Upload test logs
-        uses: actions/upload-artifact@v2
-        with:
-          name: test-logs
-          path: test_logs.txt
