@@ -74,5 +74,38 @@ namespace DynamoDBv2.Transactions.IntegrationTests
 
             Assert.Null(data1);
         }
+
+
+        [Fact]
+        public async Task DeleteNonExistingItem()
+        {
+            // Arrange
+            var nonExistingKey = "NonExistingKey";
+
+            // Act
+            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            {
+                writer.DeleteAsync<TestTable>(nameof(TestTable.UserId), nonExistingKey);
+            }
+
+            // Assert
+            // No assertion, ensure the operation doesn't throw an exception
+        }
+
+        [Fact]
+        public async Task DeleteItemWithNullKey()
+        {
+            // Arrange
+            string nullKey = null;
+
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            {
+                await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+                {
+                    writer.DeleteAsync<TestTable>(nullKey, "SomeValue");
+                }
+            });
+        }
     }
 }

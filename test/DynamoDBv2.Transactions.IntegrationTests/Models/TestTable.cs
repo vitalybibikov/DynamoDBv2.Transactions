@@ -11,7 +11,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests.Models
         public int SomeInt { get; set; }
 
         [DynamoDBProperty("SomeNullableInt32")]
-        public long? SomeNullableInt32 { get; set; }
+        public int? SomeNullableInt32 { get; set; }
 
         [DynamoDBProperty("SomeLong1")]
         public int SomeLong { get; set; }
