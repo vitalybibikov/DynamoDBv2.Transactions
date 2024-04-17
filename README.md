@@ -105,7 +105,7 @@ When creating PRs, please review the following guidelines:
 
 ## License
 
-Copyright &copy; 2024, Extend Health, LLC. Code released under the [MIT license](LICENSE).
+Copyright &copy; 2024, Vitali Bibikov. Code released under the [MIT license](LICENSE).
 
 ## Contact
 
