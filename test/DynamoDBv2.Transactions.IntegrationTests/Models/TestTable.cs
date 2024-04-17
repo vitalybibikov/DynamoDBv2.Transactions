@@ -8,7 +8,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests.Models
         public string UserId { get; set; }
 
         [DynamoDBProperty("SomeInt1")]
-        public long SomeInt { get; set; }
+        public int SomeInt { get; set; }
 
         [DynamoDBProperty("SomeNullableInt32")]
         public long? SomeNullableInt32 { get; set; }

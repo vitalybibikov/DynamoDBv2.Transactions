@@ -5,9 +5,14 @@ namespace DynamoDBv2.Transactions;
 
 public static class TransactionalWriterExtensions
 {
-    public static void PatchAsync<T, TV>(this TransactionalWriter writer, string keyValue, Property value)
+    public static void PatchAsync<T>(this TransactionalWriter writer, string keyValue, string propertyName, string propertyValue)
     {
-        var request = new PatchTransactionRequest<T>(keyValue, value!);
+        var request = new PatchTransactionRequest<T>(keyValue, new Property()
+        {
+            Name = propertyName,
+            Value = propertyValue
+        });
+
         writer.AddRawRequest(request);
     }
 

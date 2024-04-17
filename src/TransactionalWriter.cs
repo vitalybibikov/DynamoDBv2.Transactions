@@ -1,4 +1,5 @@
-﻿using DynamoDBv2.Transactions.Contracts;
+﻿using System.Linq.Expressions;
+using DynamoDBv2.Transactions.Contracts;
 using DynamoDBv2.Transactions.Requests;
 using DynamoDBv2.Transactions.Requests.Contract;
 using DynamoDBv2.Transactions.Requests.Properties;
@@ -24,15 +25,42 @@ public sealed class TransactionalWriter : IAsyncDisposable
         AddRawRequest(putRequest);
     }
 
-    public void PatchAsync<T, TV>(KeyValue key, Property value)
+    public void PatchAsync<T>(T model, string propertyName)
     {
-        var request = new PatchTransactionRequest<T>(key, value!);
+        var request = new PatchTransactionRequest<T>(model, propertyName);
         AddRawRequest(request);
     }
 
-    public void PatchAsync<T, TV>(string keyName, Property value)
+    public void PatchAsync<TModel, TValue>(
+        string keyValue,
+        Expression<Func<TModel, TValue>> propertyExpression,
+        TValue value)
     {
-        var request = new PatchTransactionRequest<T>(keyName, value!);
+        var member = propertyExpression.Body as MemberExpression;
+
+        if (keyValue == null)
+        {
+            throw new ArgumentNullException(nameof(keyValue));
+        }
+
+        if (value == null)
+        {
+            throw new ArgumentNullException(nameof(value));
+        }
+
+        if (member == null)
+        {
+            throw new ArgumentException("Expression is not a member access", nameof(propertyExpression));
+        }
+
+        var propertyName = member.Member.Name;
+
+        var request = new PatchTransactionRequest<TModel>(keyValue, new Property()
+        {
+            Name = propertyName,
+            Value = value
+        });
+
         AddRawRequest(request);
     }
 
