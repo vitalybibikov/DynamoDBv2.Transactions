@@ -11,6 +11,11 @@ public sealed class PutTransactionRequest<T> : TransactionRequest
     public PutTransactionRequest(T item)
         : base(typeof(T))
     {
+        if (item == null)
+        {
+            throw new ArgumentNullException(nameof(item));
+        }
+
         var convertedItem = DynamoDbMapper.MapToAttribute(item);
         var (propertyName, value) = DynamoDbMapper.GetVersion(item);
         SetVersion<T>(convertedItem, propertyName);
