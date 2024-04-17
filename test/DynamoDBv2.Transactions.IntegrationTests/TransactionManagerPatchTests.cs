@@ -52,7 +52,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             await _fixture.Db.Context.SaveAsync(t1);
 
             // Act
-            await using (var writer = new TransactionalWriter(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
             {
                 t1.SomeInt = 987654321;
                 writer.PatchAsync(t1, nameof(t1.SomeInt));
@@ -127,7 +127,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             await _fixture.Db.Context.SaveAsync(t1);
 
             // Act
-            await using (var writer = new TransactionalWriter(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
             {
                 writer.PatchAsync<TestTable, int>(userId1, table => table.SomeInt, newValue);
             }
@@ -165,6 +165,69 @@ namespace DynamoDBv2.Transactions.IntegrationTests
         }
 
         [Fact]
+        public async Task ReSaveDataToTable_ctor1()
+        {
+            //Arrange
+            var userId1 = Guid.NewGuid().ToString();
+
+            var t1 = new TestTable
+            {
+                UserId = userId1,
+                SomeDate = DateTime.UtcNow,
+                SomeDecimal = (decimal)123.45,
+                SomeFloat = (float)123.45,
+                SomeInt = 123
+            };
+
+            // Act
+
+            await _fixture.Db.Context.SaveAsync(t1);
+
+            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            {
+                t1.SomeDecimal = (decimal)987.65;
+                writer.PatchAsync(t1, nameof(t1.SomeDecimal));
+            }
+
+            // Assert
+            var data1 = await _fixture.Db.Context.LoadAsync<TestTable>(userId1);
+            
+            Assert.NotNull(data1);
+            Assert.Equal(t1.SomeDecimal, data1.SomeDecimal);
+        }
+
+        [Fact]
+        public async Task ReSaveDataToTable_ctor2()
+        {
+            //Arrange
+            var userId1 = Guid.NewGuid().ToString();
+            var newValue = (decimal)234.45;
+
+            var t1 = new TestTable
+            {
+                UserId = userId1,
+                SomeDate = DateTime.UtcNow,
+                SomeDecimal = (decimal)123.45,
+                SomeFloat = (float)123.45,
+                SomeInt = 123
+            };
+
+            // Act
+            await _fixture.Db.Context.SaveAsync(t1);
+
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
+            {
+                writer.PatchAsync<TestTable, decimal>(userId1, table => table.SomeDecimal, newValue);
+            }
+
+            // Assert
+            var data1 = await _fixture.Db.Context.LoadAsync<TestTable>(userId1);
+
+            Assert.NotNull(data1);
+            Assert.Equal(newValue, data1.SomeDecimal);
+        }
+
+        [Fact]
         public async Task SaveDataToTable_ctor1()
         {
             //Arrange
@@ -180,7 +243,8 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             };
 
             // Act
-            await using (var writer = new TransactionalWriter(new TransactionManager(_fixture.Db.Client)))
+
+            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
             {
                 t1.SomeDecimal = (decimal)987.65;
                 writer.PatchAsync(t1, nameof(t1.SomeDecimal));
@@ -188,7 +252,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
 
             // Assert
             var data1 = await _fixture.Db.Context.LoadAsync<TestTable>(userId1);
-            
+
             Assert.NotNull(data1);
             Assert.Equal(t1.SomeDecimal, data1.SomeDecimal);
         }
@@ -210,7 +274,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             };
 
             // Act
-            await using (var writer = new TransactionalWriter(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
                 writer.PatchAsync<TestTable, decimal>(userId1, table => table.SomeDecimal, newValue);
             }
@@ -221,5 +285,36 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             Assert.NotNull(data1);
             Assert.Equal(newValue, data1.SomeDecimal);
         }
+
+        [Fact]
+        public async Task PatchItemWithNullKey()
+        {
+            // Arrange
+            string nullKey = null;
+
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            {
+                await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+                { 
+                    writer.PatchAsync<TestTable, int>(nullKey!, item => item.SomeInt, 123);
+                }
+            });
+        }
+
+        [Fact]
+        public async Task PatchItemWithNullValue()
+        {
+            // Arrange
+            var key = "SomeKey";
+            int? nullValue = null;
+
+            // Act & Assert
+            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            {
+                writer.PatchAsync<TestTable, int?>(key, item => item.SomeNullableInt32, nullValue);
+            }
+        }
+
     }
 }
