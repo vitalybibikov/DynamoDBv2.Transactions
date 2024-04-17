@@ -10,6 +10,7 @@ namespace DynamoDBv2.Transactions;
 public sealed class DynamoDbTransactor : IAsyncDisposable
 {
     private readonly ITransactionManager _manager;
+    private bool failedToProcess = false;
 
     private List<ITransactionRequest> Requests { get; } = [];
 
@@ -26,94 +27,149 @@ public sealed class DynamoDbTransactor : IAsyncDisposable
     public void CreateOrUpdate<T>(T item)
         where T : ITransactional
     {
-        var putRequest = new PutTransactionRequest<T>(item);
-
-        AddRawRequest(putRequest);
+        try
+        {
+            var putRequest = new PutTransactionRequest<T>(item);
+            AddRawRequest(putRequest);
+        }
+        catch (Exception)
+        {
+            failedToProcess = true;
+            throw;
+        }
     }
 
     public void PatchAsync<T>(T model, string propertyName)
     {
-        var request = new PatchTransactionRequest<T>(model, propertyName);
-        AddRawRequest(request);
+        try
+        {
+            var request = new PatchTransactionRequest<T>(model, propertyName);
+            AddRawRequest(request);
+        }
+        catch (Exception)
+        {
+            failedToProcess = true;
+            throw;
+        }
     }
 
     public void PatchAsync<TModel, TValue>(
         string keyValue,
-        Expression<Func<TModel, TValue>> propertyExpression,
+        Expression<Func<TModel, TValue?>> propertyExpression,
         TValue value)
     {
-        var member = propertyExpression.Body as MemberExpression;
-
-        if (keyValue == null)
+        try
         {
-            throw new ArgumentNullException(nameof(keyValue));
+            var member = propertyExpression.Body as MemberExpression;
+
+            if (keyValue == null)
+            {
+                throw new ArgumentNullException(nameof(keyValue));
+            }
+
+            if (member == null)
+            {
+                throw new ArgumentException("Expression is not a member access", nameof(propertyExpression));
+            }
+
+            var propertyName = member.Member.Name;
+
+            var request = new PatchTransactionRequest<TModel>(keyValue, new Property()
+            {
+                Name = propertyName,
+                Value = value
+            });
+
+            AddRawRequest(request);
         }
-
-        if (value == null)
+        catch (Exception)
         {
-            throw new ArgumentNullException(nameof(value));
+            failedToProcess = true;
+            throw;
         }
-
-        if (member == null)
-        {
-            throw new ArgumentException("Expression is not a member access", nameof(propertyExpression));
-        }
-
-        var propertyName = member.Member.Name;
-
-        var request = new PatchTransactionRequest<TModel>(keyValue, new Property()
-        {
-            Name = propertyName,
-            Value = value
-        });
-
-        AddRawRequest(request);
     }
 
     public void DeleteAsync<T>(string key, string value)
     {
-        var request = new DeleteTransactionRequest<T>(new KeyValue()
+        try
         {
-            Key = key,
-            Value = value
-        });
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
 
-        AddRawRequest(request);
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            var request = new DeleteTransactionRequest<T>(new KeyValue()
+            {
+                Key = key,
+                Value = value
+            });
+
+            AddRawRequest(request);
+        }
+        catch (Exception)
+        {
+            failedToProcess = true;
+            throw;
+        }
     }
 
     public void DeleteAsync<TModel, TKeyValue>(
         Expression<Func<TModel, string>> propertyExpression,
         string value)
     {
-        var member = propertyExpression.Body as MemberExpression;
-
-        if (value == null)
+        try
         {
-            throw new ArgumentNullException(nameof(value));
+            var member = propertyExpression.Body as MemberExpression;
+
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            if (member == null)
+            {
+                throw new ArgumentException("Expression is not a member access", nameof(propertyExpression));
+            }
+            var propertyName = member.Member.Name;
+
+            var request = new DeleteTransactionRequest<TModel>(new KeyValue()
+            {
+                Key = propertyName,
+                Value = value
+            });
+
+            AddRawRequest(request);
         }
-
-        if (member == null)
+        catch (Exception)
         {
-            throw new ArgumentException("Expression is not a member access", nameof(propertyExpression));
+            failedToProcess = true;
+            throw;
         }
-        var propertyName = member.Member.Name;
-
-        var request = new DeleteTransactionRequest<TModel>(new KeyValue()
-        {
-            Key = propertyName,
-            Value = value
-        });
-
-        AddRawRequest(request);
     }
 
     public void AddRawRequest(ITransactionRequest request)
     {
-        Requests.Add(request);
+        try
+        {
+            Requests.Add(request);
+        }
+        catch (Exception)
+        {
+            failedToProcess = true;
+            throw;
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
-        await _manager.ExecuteTransactionAsync(Requests);
+        if (!failedToProcess)
+        {
+            await _manager.ExecuteTransactionAsync(Requests);
+        }
     }
 }

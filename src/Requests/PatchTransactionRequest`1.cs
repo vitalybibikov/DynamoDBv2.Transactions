@@ -13,7 +13,7 @@ public class PatchTransactionRequest<T> : TransactionRequest
     public PatchTransactionRequest(KeyValue keyValue, Property value)
         : base(typeof(T))
     {
-        var val = DynamoDbMapper.GetAttributeValue(value.Value);
+        var val = DynamoDbMapper.GetAttributeValue(value.Value!);
         var propertyName = DynamoDbMapper.GetPropertyAttributedName(ItemType, value.Name);
 
         if (val != null)
@@ -26,8 +26,8 @@ public class PatchTransactionRequest<T> : TransactionRequest
     public PatchTransactionRequest(string keyValue, Property value)
         : base(typeof(T))
     {
-        var attributeValue = DynamoDbMapper.GetAttributeValue(value.Value);
-        var propertyName = DynamoDbMapper.GetPropertyAttributedName(ItemType, value.Name);
+        var attributeValue = DynamoDbMapper.GetAttributeValue(value.Value!);
+        var propertyName = DynamoDbMapper.GetPropertyAttributedName(ItemType, value.Name!);
         var key = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
 
         Setup(keyValue, attributeValue, key, propertyName);

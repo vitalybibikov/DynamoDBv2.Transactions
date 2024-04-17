@@ -285,5 +285,36 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             Assert.NotNull(data1);
             Assert.Equal(newValue, data1.SomeDecimal);
         }
+
+        [Fact]
+        public async Task PatchItemWithNullKey()
+        {
+            // Arrange
+            string nullKey = null;
+
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            {
+                await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+                { 
+                    writer.PatchAsync<TestTable, int>(nullKey!, item => item.SomeInt, 123);
+                }
+            });
+        }
+
+        [Fact]
+        public async Task PatchItemWithNullValue()
+        {
+            // Arrange
+            var key = "SomeKey";
+            int? nullValue = null;
+
+            // Act & Assert
+            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            {
+                writer.PatchAsync<TestTable, int?>(key, item => item.SomeNullableInt32, nullValue);
+            }
+        }
+
     }
 }
