@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using Amazon.DynamoDBv2;
 using DynamoDBv2.Transactions.Contracts;
 using DynamoDBv2.Transactions.Requests;
 using DynamoDBv2.Transactions.Requests.Contract;
@@ -6,15 +7,20 @@ using DynamoDBv2.Transactions.Requests.Properties;
 
 namespace DynamoDBv2.Transactions;
 
-public sealed class TransactionalWriter : IAsyncDisposable
+public sealed class DynamoDbTransactor : IAsyncDisposable
 {
     private readonly ITransactionManager _manager;
 
     private List<ITransactionRequest> Requests { get; } = [];
 
-    public TransactionalWriter(ITransactionManager manager)
+    public DynamoDbTransactor(ITransactionManager manager)
     {
         _manager = manager;
+    }
+
+    public DynamoDbTransactor(IAmazonDynamoDB manager)
+    : this(new TransactionManager(manager))
+    {
     }
 
     public void CreateOrUpdate<T>(T item)

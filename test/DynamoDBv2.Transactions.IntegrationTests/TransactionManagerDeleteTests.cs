@@ -18,7 +18,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
         }
 
         [Fact]
-        public async Task SaveDataToTable_ctor1()
+        public async Task SaveDataToTableAndDelete_ctor1()
         {
             //Arrange
             var userId1 = Guid.NewGuid().ToString();
@@ -35,7 +35,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             // Act
             await _fixture.Db.Context.SaveAsync(t1);
 
-            await using (var writer = new TransactionalWriter(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
             {
                 writer.DeleteAsync<TestTable>(nameof(t1.UserId), userId1);
             }
@@ -47,7 +47,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
         }
 
         [Fact]
-        public async Task SaveDataToTable_ctor2()
+        public async Task SaveDataToTableAndDelete_ctor2()
         {
             //Arrange
             var userId1 = Guid.NewGuid().ToString();
@@ -64,7 +64,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             // Act
             await _fixture.Db.Context.SaveAsync(t1);
 
-            await using (var writer = new TransactionalWriter(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
             {
                 writer.DeleteAsync<TestTable, string>(table => t1.UserId, userId1);
             }
