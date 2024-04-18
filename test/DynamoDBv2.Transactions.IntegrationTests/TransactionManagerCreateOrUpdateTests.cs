@@ -250,5 +250,146 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             Assert.NotNull(data1);
             Assert.Equal(0, data1.Version);
         }
+
+        [Fact]
+        public async Task UpdateItemWithNullKey()
+        {
+            // Arrange
+            var item = new TestTable
+            {
+                UserId = null,
+                SomeInt = 123
+            };
+
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            {
+                await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+                {
+                    writer.CreateOrUpdate(item);
+                }
+            });
+        }
+
+        [Fact]
+        public async Task SaveDataWithMaxValues()
+        {
+            // Arrange
+            var userId = Guid.NewGuid().ToString();
+            var maxInt = int.MaxValue;
+            var maxFloat = float.MaxValue;
+            var maxDecimal = decimal.MaxValue;
+            var maxDateTime = DateTime.MaxValue;
+            var someClass = new SomeClass { X = "TestX", Y = "TestY" };
+            var someRecord = new SomeRecord { X = "RecordX", Y = "RecordY" };
+            var someClassList = new List<SomeClass> { new SomeClass { X = "ListX", Y = "ListY" } };
+            var someClassDictionary = new Dictionary<string, SomeClass> { { "Key1", new SomeClass { X = "DictX", Y = "DictY" } } };
+            var emptyMemoryStream = new MemoryStream();
+            var emptyByteArray = new byte[0];
+
+            var testItem = new TestTable
+            {
+                UserId = userId,
+                SomeInt = maxInt,
+                SomeNullableInt32 = null,
+                SomeLong = maxInt,
+                SomeNullableLong = null,
+                SomeFloat = maxFloat,
+                SomeNullableFloat = null,
+                SomeDecimal = maxDecimal,
+                SomeNullableDecimal = null,
+                SomeDate = maxDateTime,
+                SomeNullableDate1 = null,
+                SomeBool = true,
+                SomeNullableBool = null,
+                SomeClass = someClass,
+                SomeRecord = someRecord,
+                SomeClassList = someClassList,
+                SomeClassDictionary = someClassDictionary,
+                SomeMemoryStream = emptyMemoryStream,
+                SomeBytes = emptyByteArray
+            };
+
+            // Act
+            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            {
+                writer.CreateOrUpdate(testItem);
+            }
+
+            // Assert
+            var data = await _fixture.Db.Context.LoadAsync<TestTable>(userId);
+            Assert.NotNull(data);
+        }
+
+        [Fact]
+        public async Task SaveDataWithDefaultValues()
+        {
+            // Arrange
+            var userId = Guid.NewGuid().ToString();
+            var defaultInt = default(int); // Defaults to 0
+            var defaultFloat = default(float); // Defaults to 0.0
+            var defaultDecimal = default(decimal); // Defaults to 0
+            var defaultDateTime = default(DateTime); // Defaults to DateTime.MinValue
+            var defaultBool = default(bool); // Defaults to false
+            var defaultSomeClass = default(SomeClass); // Defaults to null
+            var defaultSomeRecord = default(SomeRecord); // Defaults to null
+            var defaultSomeClassList = default(List<SomeClass>); // Defaults to null
+            var defaultSomeClassDictionary = default(Dictionary<string, SomeClass>); // Defaults to null
+            var defaultMemoryStream = default(MemoryStream); // Defaults to null
+            var defaultByteArray = default(byte[]); // Defaults to null
+
+            var testItem = new TestTable
+            {
+                UserId = userId,
+                SomeInt = defaultInt,
+                SomeNullableInt32 = null,
+                SomeLong = defaultInt,
+                SomeNullableLong = null,
+                SomeFloat = defaultFloat,
+                SomeNullableFloat = null,
+                SomeDecimal = defaultDecimal,
+                SomeNullableDecimal = null,
+                SomeDate = defaultDateTime.ToUniversalTime(),
+                SomeNullableDate1 = null,
+                SomeBool = defaultBool,
+                SomeNullableBool = null,
+                SomeClass = defaultSomeClass,
+                SomeRecord = defaultSomeRecord,
+                SomeClassList = defaultSomeClassList,
+                SomeClassDictionary = defaultSomeClassDictionary,
+                SomeMemoryStream = defaultMemoryStream,
+                SomeBytes = defaultByteArray
+            };
+
+            // Act
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
+            {
+                writer.CreateOrUpdate(testItem);
+            }
+
+            // Assert
+            var data = await _fixture.Db.Context.LoadAsync<TestTable>(userId);
+            Assert.NotNull(data);
+            Assert.Equal(defaultInt, data.SomeInt);
+            Assert.Null(data.SomeNullableInt32);
+            Assert.Equal(defaultInt, data.SomeLong);
+            Assert.Null(data.SomeNullableLong);
+            Assert.Equal(defaultFloat, data.SomeFloat);
+            Assert.Null(data.SomeNullableFloat);
+            Assert.Equal(defaultDecimal, data.SomeDecimal);
+            Assert.Null(data.SomeNullableDecimal);
+            Assert.Equal(defaultDateTime.ToUniversalTime(), data.SomeDate.ToUniversalTime());
+            Assert.Null(data.SomeNullableDate1);
+            Assert.Equal(defaultBool, data.SomeBool);
+            Assert.Null(data.SomeNullableBool);
+            Assert.Null(data.SomeClass);
+            Assert.Null(data.SomeRecord);
+            Assert.Null(data.SomeClassList);
+            Assert.Null(data.SomeClassDictionary);
+            Assert.Null(data.SomeMemoryStream);
+            Assert.Null(data.SomeBytes);
+        }
+
+
     }
 }
