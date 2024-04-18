@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
+    <PackageReference Include="BenchmarkDotNet.Annotations" Version="0.13.12" />
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.302.15" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DynamoDBv2.Transactions.csproj" />
+    <ProjectReference Include="..\DynamoDBv2.Transactions.IntegrationTests\DynamoDBv2.Transactions.IntegrationTests.csproj" />
+  </ItemGroup>
+
+</Project>
