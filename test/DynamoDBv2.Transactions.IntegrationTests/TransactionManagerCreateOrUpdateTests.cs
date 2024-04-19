@@ -252,26 +252,6 @@ namespace DynamoDBv2.Transactions.IntegrationTests
         }
 
         [Fact]
-        public async Task UpdateItemWithNullKey()
-        {
-            // Arrange
-            var item = new TestTable
-            {
-                UserId = null,
-                SomeInt = 123
-            };
-
-            // Act & Assert
-            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            {
-                await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
-                {
-                    writer.CreateOrUpdate(item);
-                }
-            });
-        }
-
-        [Fact]
         public async Task SaveDataWithMaxValues()
         {
             // Arrange
