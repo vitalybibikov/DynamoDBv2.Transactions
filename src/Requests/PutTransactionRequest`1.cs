@@ -19,14 +19,6 @@ public sealed class PutTransactionRequest<T> : TransactionRequest
 
         var convertedItem = DynamoDbMapper.MapToAttribute(item);
         var (propertyName, value) = DynamoDbMapper.GetVersion(item);
-        var attributeName = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
-
-        var keyFound = convertedItem.TryGetValue(attributeName, out AttributeValue? keyValue);
-
-        if (!keyFound)
-        {
-            throw new ArgumentNullException("HashKey not found in the model");
-        }
 
         SetVersion<T>(convertedItem, propertyName);
         PutRequest = new PutItemRequest(TableName, convertedItem);
