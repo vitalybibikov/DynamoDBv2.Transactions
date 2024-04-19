@@ -2,7 +2,7 @@
 
 DynamoDBv2.Transactions is a .NET library that provides a robust wrapper around the Amazon DynamoDB low-level API, enabling easy and efficient management of transactions for batch operations. This library is designed to simplify complex transactional logic and ensure data consistency across your DynamoDB operations.
 
-![Badge](https://camo.githubusercontent.com/7a1b0b1a230ee19f14cef6ac1970103f931c61e06e96866a0c7a45c68bfd8755/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f362f362d5041535345442d627269676874677265656e2e737667) ![Badge](https://camo.githubusercontent.com/e6f58b5667bf820dd34d07762b5f0232f3d27d6fde052988c9e07af61ab1448e/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f34312f34312d5041535345442d627269676874677265656e2e737667)
+![Badge](https://camo.githubusercontent.com/f824639c7971a3cecd08cef859f85e5b7181d8f0701df0a1c6e7d475f0e8f20f/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f32302f32302d5041535345442d627269676874677265656e2e737667) ![Badge](https://camo.githubusercontent.com/e6f58b5667bf820dd34d07762b5f0232f3d27d6fde052988c9e07af61ab1448e/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f34312f34312d5041535345442d627269676874677265656e2e737667)
 
 [![.github/workflows/dotnet.yml](https://github.com/vitalybibikov/DynamoDBv2.Transactions/actions/workflows/dotnet.yml/badge.svg)](https://github.com/vitalybibikov/DynamoDBv2.Transactions/actions/workflows/dotnet.yml)
 
