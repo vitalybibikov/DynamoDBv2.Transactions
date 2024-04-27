@@ -66,9 +66,57 @@ var data = await dbContext.LoadAsync<TestTable>(userId);
 Console.WriteLine($"Item saved with UserId: {data.UserId}");
 ```
 
+
+## BenchmarkDotNet results
+
+// * Summary *
+
+BenchmarkDotNet v0.13.12, Windows 11 (10.0.22631.3527/23H2/2023Update/SunValley3)
+AMD Ryzen 9 6900HS with Radeon Graphics, 1 CPU, 16 logical and 8 physical cores
+.NET SDK 8.0.200
+  [Host]    : .NET 8.0.2 (8.0.224.6711), X64 RyuJIT AVX2
+  OutOfProc : .NET 8.0.2 (8.0.224.6711), X64 RyuJIT AVX2
+
+Job=OutOfProc  IterationCount=15  LaunchCount=3
+WarmupCount=10
+
+| Method                      | Mean     | Error    | StdDev   | Allocated |
+|---------------------------- |---------:|---------:|---------:|----------:|
+| DynamoDbTransactionsWrapper | 12.15 ms | 0.075 ms | 0.139 ms |  80.96 KB |
+| OriginalWrapper             | 15.73 ms | 0.158 ms | 0.300 ms |  83.75 KB |
+
+// * Hints *
+Outliers
+  Benchmark.DynamoDbTransactionsWrapper: OutOfProc -> 1 outlier  was  removed (13.54 ms)
+
+// * Legends *
+  Mean      : Arithmetic mean of all measurements
+  Error     : Half of 99.9% confidence interval
+  StdDev    : Standard deviation of all measurements
+  Allocated : Allocated memory per single operation (managed only, inclusive, 1KB = 1024B)
+  1 ms      : 1 Millisecond (0.001 sec)
+
+// * Diagnostic Output - MemoryDiagnoser *
+
+
+// ***** BenchmarkRunner: End *****
+Run time: 00:02:02 (122.6 sec), executed benchmarks: 2
+
+Global total time: 00:02:24 (144.74 sec), executed benchmarks: 2
+
+To run benchmark:
+1. Goto .\DynamoDBv2.Transactions
+2. dotnet build .\test\DynamoDBv2.Transactions.Benchmarks\ -c Release
+3. Execute in shell .\test\DynamoDBv2.Transactions.Benchmarks\bin\Release\net8.0\DynamoDBv2.Transactions.exe
+
 ## Running Tests
 
-To run integration tests, ensure you have a test instance of DynamoDB available. Tests are written using xUnit and should be configured to interact directly with your database:
+To run integration tests, ensure you have a test instance of DynamoDB available.  (and configure it in env of the docker compose file)
+(On my env tests are running both in real DynamoDB and localstack instance)
+Tests are written using xUnit and should be configured to interact directly with your database:
+
+1. docker-compose up --exit-code-from tests tests localstack
+2. docker-compose up --exit-code-from unittests unittests
 
 ```csharp
 // Example test
