@@ -7,10 +7,10 @@ using DynamoDBv2.Transactions.Requests.Properties;
 
 namespace DynamoDBv2.Transactions;
 
-public sealed class DynamoDbTransactor : IAsyncDisposable
+public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
 {
     private readonly ITransactionManager _manager;
-    private bool failedToProcess = false;
+    private bool _failedToProcess = false;
 
     private List<ITransactionRequest> Requests { get; } = [];
 
@@ -25,7 +25,6 @@ public sealed class DynamoDbTransactor : IAsyncDisposable
     }
 
     public void CreateOrUpdate<T>(T item)
-        where T : ITransactional
     {
         try
         {
@@ -34,7 +33,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable
         }
         catch (Exception)
         {
-            failedToProcess = true;
+            _failedToProcess = true;
             throw;
         }
     }
@@ -48,7 +47,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable
         }
         catch (Exception)
         {
-            failedToProcess = true;
+            _failedToProcess = true;
             throw;
         }
     }
@@ -84,12 +83,12 @@ public sealed class DynamoDbTransactor : IAsyncDisposable
         }
         catch (Exception)
         {
-            failedToProcess = true;
+            _failedToProcess = true;
             throw;
         }
     }
 
-    public void DeleteAsync<T>(string key, string value)
+    public void DeleteAsync<T>(string key, string deletedItemValue)
     {
         try
         {
@@ -98,56 +97,135 @@ public sealed class DynamoDbTransactor : IAsyncDisposable
                 throw new ArgumentNullException(nameof(key));
             }
 
-            if (value == null)
+            if (deletedItemValue == null)
             {
-                throw new ArgumentNullException(nameof(value));
+                throw new ArgumentNullException(nameof(deletedItemValue));
             }
 
             var request = new DeleteTransactionRequest<T>(new KeyValue()
             {
                 Key = key,
-                Value = value
+                Value = deletedItemValue
             });
 
             AddRawRequest(request);
         }
         catch (Exception)
         {
-            failedToProcess = true;
+            _failedToProcess = true;
             throw;
         }
     }
 
-    public void DeleteAsync<TModel, TKeyValue>(
-        Expression<Func<TModel, string>> propertyExpression,
-        string value)
+    public void DeleteAsync<TModel, TKeyValue>(Expression<Func<TModel, string>> propertyNameExpression, string deletedItemValue)
     {
         try
         {
-            var member = propertyExpression.Body as MemberExpression;
+            var member = propertyNameExpression.Body as MemberExpression;
 
-            if (value == null)
+            if (deletedItemValue == null)
             {
-                throw new ArgumentNullException(nameof(value));
+                throw new ArgumentNullException(nameof(deletedItemValue));
             }
 
             if (member == null)
             {
-                throw new ArgumentException("Expression is not a member access", nameof(propertyExpression));
+                throw new ArgumentException("Expression is not a member access", nameof(propertyNameExpression));
             }
+
             var propertyName = member.Member.Name;
 
-            var request = new DeleteTransactionRequest<TModel>(new KeyValue()
+            var request = new DeleteTransactionRequest<TModel>(new KeyValue
             {
                 Key = propertyName,
-                Value = value
+                Value = deletedItemValue
             });
 
             AddRawRequest(request);
         }
         catch (Exception)
         {
-            failedToProcess = true;
+            _failedToProcess = true;
+            throw;
+        }
+    }
+
+    public void ConditionEquals<TModel, TValue>(KeyValue keyvalue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    {
+        try
+        {
+            var request = new ConditionCheckTransactionRequest<TModel>(keyvalue);
+            request.Equals(propertyExpression, value);
+
+            AddRawRequest(request);
+        }
+        catch (Exception e)
+        {
+            _failedToProcess = true;
+            throw;
+        }
+    }
+
+    public void ConditionLessThan<TModel, TValue>(KeyValue keyvalue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    {
+        try
+        {
+            var request = new ConditionCheckTransactionRequest<TModel>(keyvalue);
+            request.LessThan(propertyExpression, value);
+
+            AddRawRequest(request);
+        }
+        catch (Exception e)
+        {
+            _failedToProcess = true;
+            throw;
+        }
+    }
+
+    public void ConditionGreaterThan<TModel, TValue>(KeyValue keyvalue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    {
+        try
+        {
+            var request = new ConditionCheckTransactionRequest<TModel>(keyvalue);
+            request.GreaterThan(propertyExpression, value);
+
+            AddRawRequest(request);
+        }
+        catch (Exception e)
+        {
+            _failedToProcess = true;
+            throw;
+        }
+    }
+
+    public void ConditionNotEquals<TModel, TValue>(KeyValue keyvalue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    {
+        try
+        {
+            var request = new ConditionCheckTransactionRequest<TModel>(keyvalue);
+            request.NotEquals(propertyExpression, value);
+
+            AddRawRequest(request);
+        }
+        catch (Exception e)
+        {
+            _failedToProcess = true;
+            throw;
+        }
+    }
+
+    public void ConditionVersionEquals<TModel>(KeyValue keyvalue, Expression<Func<TModel, long>> propertyExpression, long value)
+    {
+        try
+        {
+            var request = new ConditionCheckTransactionRequest<TModel>(keyvalue);
+            request.VersionEquals(propertyExpression, value);
+
+            AddRawRequest(request);
+        }
+        catch (Exception e)
+        {
+            _failedToProcess = true;
             throw;
         }
     }
@@ -160,16 +238,17 @@ public sealed class DynamoDbTransactor : IAsyncDisposable
         }
         catch (Exception)
         {
-            failedToProcess = true;
+            _failedToProcess = true;
             throw;
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (!failedToProcess)
+        if (!_failedToProcess)
         {
             await _manager.ExecuteTransactionAsync(Requests);
         }
     }
+
 }

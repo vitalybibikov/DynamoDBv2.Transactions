@@ -37,8 +37,5 @@ namespace DynamoDBv2.Transactions.UnitTests
             Assert.Equal(nameof(SomeDynamoDbEntity), conditionCheck.TableName);
             Assert.Equal("attribute_exists(Id)", conditionCheck.ConditionExpression);
         }
-
-        // Additional tests can be added here...
     }
-
 }

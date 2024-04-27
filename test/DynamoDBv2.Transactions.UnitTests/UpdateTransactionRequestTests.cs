@@ -37,8 +37,5 @@ namespace DynamoDBv2.Transactions.UnitTests
             Assert.Equal(nameof(SomeDynamoDbEntity), update.TableName);
             Assert.Equal(expression, update.UpdateExpression);
         }
-
-        // Additional tests...
     }
-
 }

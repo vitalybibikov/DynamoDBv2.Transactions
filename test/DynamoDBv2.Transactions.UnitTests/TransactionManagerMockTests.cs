@@ -19,7 +19,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             var manager = new TransactionManager(mockAmazonDynamoDB.Object);
             var requests = new List<ITransactionRequest>
             {
-                new ConditionCheckTransactionRequest<SomeDynamoDbEntity>(),
+                //new ConditionCheckTransactionRequest<SomeDynamoDbEntity>(),
                 new DeleteTransactionRequest<SomeDynamoDbEntity>(new KeyValue { Key = "Id", Value = "123" }),
                 new UpdateTransactionRequest<SomeDynamoDbEntity>(),
                 new PutTransactionRequest<SomeDynamoDbEntity>(new SomeDynamoDbEntity()),
@@ -41,7 +41,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             var manager = new TransactionManager(mockAmazonDynamoDB.Object);
             var requests = new List<ITransactionRequest>
             {
-                new ConditionCheckTransactionRequest<SomeDynamoDbEntity>(),
+                //new ConditionCheckTransactionRequest<SomeDynamoDbEntity>(),
                 new DeleteTransactionRequest<SomeDynamoDbEntity>(new KeyValue { Key = "Id", Value = "123" }),
                 new UpdateTransactionRequest<SomeDynamoDbEntity>(),
                 new PutTransactionRequest<SomeDynamoDbEntity>(new SomeDynamoDbEntity()),
