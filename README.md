@@ -80,14 +80,17 @@ AMD Ryzen 9 6900HS with Radeon Graphics, 1 CPU, 16 logical and 8 physical cores
 Job=OutOfProc  IterationCount=15  LaunchCount=3
 WarmupCount=10
 
-| Method                      | Mean     | Error    | StdDev   | Allocated |
-|---------------------------- |---------:|---------:|---------:|----------:|
-| DynamoDbTransactionsWrapper | 12.15 ms | 0.075 ms | 0.139 ms |  80.96 KB |
-| OriginalWrapper             | 15.73 ms | 0.158 ms | 0.300 ms |  83.75 KB |
+| Method                            | Mean     | Error    | StdDev   | Allocated |
+|---------------------------------- |---------:|---------:|---------:|----------:|
+| DynamoDbTransactionsWrapper       | 11.99 ms | 0.046 ms | 0.087 ms |  80.96 KB |
+| OriginalWrapper                   | 15.83 ms | 0.236 ms | 0.442 ms |  83.77 KB |
+| DynamoDbTransactionsWrapper3Items | 13.37 ms | 0.066 ms | 0.123 ms | 114.74 KB |
+| OriginalWrapper3Items             | 46.44 ms | 0.444 ms | 0.834 ms | 251.01 KB |
 
 // * Hints *
 Outliers
-  Benchmark.DynamoDbTransactionsWrapper: OutOfProc -> 1 outlier  was  removed (13.54 ms)
+  Benchmark.DynamoDbTransactionsWrapper3Items: OutOfProc -> 3 outliers were removed (13.64 ms..14.81 ms)
+  Benchmark.OriginalWrapper3Items: OutOfProc             -> 3 outliers were removed (48.78 ms..49.19 ms)
 
 // * Legends *
   Mean      : Arithmetic mean of all measurements
@@ -100,9 +103,7 @@ Outliers
 
 
 // ***** BenchmarkRunner: End *****
-Run time: 00:02:02 (122.6 sec), executed benchmarks: 2
-
-Global total time: 00:02:24 (144.74 sec), executed benchmarks: 2
+Run time: 00:04:09 (249.42 sec), executed benchmarks: 4
 
 ### To run benchmark:
 1. Goto .\DynamoDBv2.Transactions
