@@ -1,12 +1,16 @@
-﻿using Amazon.DynamoDBv2.Model;
+﻿using Amazon.DynamoDBv2.DataModel;
+using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Requests.Abstract;
 using DynamoDBv2.Transactions.Requests.Properties;
 
 namespace DynamoDBv2.Transactions.Requests;
 
-public class PatchTransactionRequest<T> : TransactionRequest
+/// <summary>
+/// Represents a request to perform a <c>Patch</c> operation.
+/// </summary>
+public sealed class PatchTransactionRequest<T> : TransactionRequest
 {
-    public string? UpdateExpression { get; set; }
+    public string? UpdateExpression { get; protected set; }
 
     public override TransactOperationType Type => TransactOperationType.Patch;
 
@@ -23,6 +27,12 @@ public class PatchTransactionRequest<T> : TransactionRequest
         }
     }
 
+    /// <summary>
+    /// Creates a new <see cref="PatchTransactionRequest{T}"/> instance. Assuming
+    /// that HASH key is marked with <see cref="DynamoDBHashKeyAttribute"/>.
+    /// </summary>
+    /// <param name="keyValue">HASH key value </param>
+    /// <param name="value">Property to be patched</param>
     public PatchTransactionRequest(string keyValue, Property value)
         : base(typeof(T))
     {
@@ -33,6 +43,13 @@ public class PatchTransactionRequest<T> : TransactionRequest
         Setup(keyValue, attributeValue, key, propertyName);
     }
 
+    /// <summary>
+    /// Creates a new <see cref="PatchTransactionRequest{T}"/> instance. Assuming
+    /// that HASH key is marked with <see cref="DynamoDBHashKeyAttribute"/>.
+    /// </summary>
+    /// <param name="model">Type to be patched</param>
+    /// <param name="propertyName">Property that is going to be patched. </param>
+    /// <exception cref="ArgumentNullException">exception</exception>
     public PatchTransactionRequest(T model, string propertyName)
         : base(typeof(T))
     {

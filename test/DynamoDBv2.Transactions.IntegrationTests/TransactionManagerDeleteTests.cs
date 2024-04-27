@@ -1,8 +1,5 @@
-﻿using Amazon.DynamoDBv2.Model;
-using DynamoDBv2.Transactions.IntegrationTests.Helpers;
-using DynamoDBv2.Transactions.IntegrationTests.Models;
+﻿using DynamoDBv2.Transactions.IntegrationTests.Models;
 using DynamoDBv2.Transactions.IntegrationTests.Setup;
-using DynamoDBv2.Transactions.Requests.Properties;
 using Xunit;
 
 namespace DynamoDBv2.Transactions.IntegrationTests
@@ -35,7 +32,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             // Act
             await _fixture.Db.Context.SaveAsync(t1);
 
-            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
                 writer.DeleteAsync<TestTable>(nameof(t1.UserId), userId1);
             }
@@ -64,9 +61,10 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             // Act
             await _fixture.Db.Context.SaveAsync(t1);
 
-            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
+
             {
-                writer.DeleteAsync<TestTable, string>(table => t1.UserId, userId1);
+                writer.DeleteAsync<TestTable, string>(table => userId1, userId1);
             }
 
             // Assert
@@ -83,7 +81,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             var nonExistingKey = "NonExistingKey";
 
             // Act
-            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
                 writer.DeleteAsync<TestTable>(nameof(TestTable.UserId), nonExistingKey);
             }
@@ -101,7 +99,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentNullException>(async () =>
             {
-                await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+                await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
                 {
                     writer.DeleteAsync<TestTable>(nullKey, "SomeValue");
                 }
