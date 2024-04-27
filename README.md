@@ -104,14 +104,15 @@ Run time: 00:02:02 (122.6 sec), executed benchmarks: 2
 
 Global total time: 00:02:24 (144.74 sec), executed benchmarks: 2
 
-To run benchmark:
+### To run benchmark:
 1. Goto .\DynamoDBv2.Transactions
 2. dotnet build .\test\DynamoDBv2.Transactions.Benchmarks\ -c Release
 3. Execute in shell .\test\DynamoDBv2.Transactions.Benchmarks\bin\Release\net8.0\DynamoDBv2.Transactions.exe
 
 ## Running Tests
 
-To run integration tests, ensure you have a test instance of DynamoDB available.  (and configure it in env of the docker compose file)
+### To run integration tests
+ensure you have a test instance of DynamoDB available.  (and configure it in env of the docker compose file)
 (On my env tests are running both in real DynamoDB and localstack instance)
 Tests are written using xUnit and should be configured to interact directly with your database:
 
