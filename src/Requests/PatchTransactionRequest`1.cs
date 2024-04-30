@@ -10,7 +10,7 @@ namespace DynamoDBv2.Transactions.Requests;
 /// </summary>
 public sealed class PatchTransactionRequest<T> : TransactionRequest
 {
-    public string? UpdateExpression { get; protected set; }
+    public string? UpdateExpression { get; private set; }
 
     public override TransactOperationType Type => TransactOperationType.Patch;
 

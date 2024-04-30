@@ -250,5 +250,4 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
             await _manager.ExecuteTransactionAsync(Requests);
         }
     }
-
 }
