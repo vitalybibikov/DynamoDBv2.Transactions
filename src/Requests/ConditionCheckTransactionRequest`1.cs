@@ -55,8 +55,11 @@ namespace DynamoDBv2.Transactions.Requests
         public override Operation GetOperation()
         {
             // Ensure the final condition expression does not end with "AND "
-            ConditionExpression = ConditionExpression.TrimEnd(' ', 'A', 'N', 'D');
-
+            if (!String.IsNullOrEmpty(ConditionExpression))
+            {
+                ConditionExpression = ConditionExpression.TrimEnd(' ', 'A', 'N', 'D');
+            }
+            
             var check = new ConditionCheck
             {
                 TableName = TableName,
@@ -67,43 +70,43 @@ namespace DynamoDBv2.Transactions.Requests
             return Operation.Check(check);
         }
 
-        public void Equals<T, TValue>(Expression<Func<T, TValue>> propertyExpression, TValue value)
+        public void Equals<TV, TValue>(Expression<Func<TV, TValue>> propertyExpression, TValue value)
         {
             AddCondition(propertyExpression, "=", value);
         }
 
-        public void NotEquals<T, TValue>(Expression<Func<T, TValue>> propertyExpression, TValue value)
+        public void NotEquals<TV, TValue>(Expression<Func<TV, TValue>> propertyExpression, TValue value)
         {
             AddCondition(propertyExpression, "<>", value);
         }
 
-        public void GreaterThan<T, TValue>(Expression<Func<T, TValue>> propertyExpression, TValue value)
+        public void GreaterThan<TV, TValue>(Expression<Func<TV, TValue>> propertyExpression, TValue value)
         {
             AddCondition(propertyExpression, ">", value);
         }
 
-        public void LessThan<T, TValue>(Expression<Func<T, TValue>> propertyExpression, TValue value)
+        public void LessThan<TV, TValue>(Expression<Func<TV, TValue>> propertyExpression, TValue value)
         {
             AddCondition(propertyExpression, "<", value);
         }
 
-        public void VersionEquals<T>(Expression<Func<T, long>> propertyExpression, long expectedVersion)
+        public void VersionEquals<TV>(Expression<Func<TV, long>> propertyExpression, long expectedVersion)
         {
             // This assumes that version is a number and stored in DynamoDB as a numeric type
-            AddCondition<T, long>(propertyExpression, "=", expectedVersion);
+            AddCondition<TV, long>(propertyExpression, "=", expectedVersion);
         }
 
-        private void AddCondition<T, TValue>(Expression<Func<T, TValue>> propertyExpression, string comparisonOperator, TValue value)
+        private void AddCondition<TV, TValue>(Expression<Func<TV, TValue>> propertyExpression, string comparisonOperator, TValue value)
         {
             var propertyName = GetPropertyName(propertyExpression);
-            var attributeValue = DynamoDbMapper.GetAttributeValue(value);
+            var attributeValue = DynamoDbMapper.GetAttributeValue(value!);
 
             ExpressionAttributeNames[$"#{propertyName}"] = propertyName;
-            ExpressionAttributeValues[$":{propertyName}Value"] = attributeValue;
+            ExpressionAttributeValues[$":{propertyName}Value"] = attributeValue!;
             ConditionExpression += $"{ConditionExpression} #{propertyName} {comparisonOperator} :{propertyName}Value AND ";
         }
 
-        private string GetPropertyName<T, TValue>(Expression<Func<T, TValue>> expression)
+        private string GetPropertyName<TV, TValue>(Expression<Func<TV, TValue>> expression)
         {
             string? propertyName = null;
 

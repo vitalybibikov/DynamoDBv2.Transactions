@@ -55,7 +55,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 writer.CreateOrUpdate(t1);
             };
 
-            var keyValue = new KeyValue { Key = userId1, Value = userId1 };
+            var keyValue = new KeyValue { Key = nameof(TestTable.UserId), Value = userId1 };
             await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
                 writer.ConditionEquals<TestTable, float>(keyValue,table => t1.SomeFloat, 123.456f);
