@@ -64,6 +64,8 @@ namespace DynamoDBv2.Transactions.Requests
             {
                 TableName = TableName,
                 Key = Key,
+                ExpressionAttributeNames = ExpressionAttributeNames,
+                ExpressionAttributeValues = ExpressionAttributeValues,
                 ConditionExpression = ConditionExpression
             };
 

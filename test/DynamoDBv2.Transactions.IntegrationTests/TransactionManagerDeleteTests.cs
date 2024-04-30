@@ -64,7 +64,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
 
             {
-                writer.DeleteAsync<TestTable, string>(table => userId1, userId1);
+                writer.DeleteAsync<TestTable, string>(table => table.UserId, userId1);
             }
 
             // Assert
