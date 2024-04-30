@@ -150,80 +150,80 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
     }
 
-    public void ConditionEquals<TModel, TValue>(KeyValue keyvalue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    public void ConditionEquals<TModel, TValue>(KeyValue keyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
     {
         try
         {
-            var request = new ConditionCheckTransactionRequest<TModel>(keyvalue);
+            var request = new ConditionCheckTransactionRequest<TModel>(keyValue);
             request.Equals(propertyExpression, value);
 
             AddRawRequest(request);
         }
-        catch (Exception e)
+        catch (Exception)
         {
             _failedToProcess = true;
             throw;
         }
     }
 
-    public void ConditionLessThan<TModel, TValue>(KeyValue keyvalue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    public void ConditionLessThan<TModel, TValue>(KeyValue keyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
     {
         try
         {
-            var request = new ConditionCheckTransactionRequest<TModel>(keyvalue);
+            var request = new ConditionCheckTransactionRequest<TModel>(keyValue);
             request.LessThan(propertyExpression, value);
 
             AddRawRequest(request);
         }
-        catch (Exception e)
+        catch (Exception)
         {
             _failedToProcess = true;
             throw;
         }
     }
 
-    public void ConditionGreaterThan<TModel, TValue>(KeyValue keyvalue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    public void ConditionGreaterThan<TModel, TValue>(KeyValue keyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
     {
         try
         {
-            var request = new ConditionCheckTransactionRequest<TModel>(keyvalue);
+            var request = new ConditionCheckTransactionRequest<TModel>(keyValue);
             request.GreaterThan(propertyExpression, value);
 
             AddRawRequest(request);
         }
-        catch (Exception e)
+        catch (Exception)
         {
             _failedToProcess = true;
             throw;
         }
     }
 
-    public void ConditionNotEquals<TModel, TValue>(KeyValue keyvalue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    public void ConditionNotEquals<TModel, TValue>(KeyValue keyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
     {
         try
         {
-            var request = new ConditionCheckTransactionRequest<TModel>(keyvalue);
+            var request = new ConditionCheckTransactionRequest<TModel>(keyValue);
             request.NotEquals(propertyExpression, value);
 
             AddRawRequest(request);
         }
-        catch (Exception e)
+        catch (Exception)
         {
             _failedToProcess = true;
             throw;
         }
     }
 
-    public void ConditionVersionEquals<TModel>(KeyValue keyvalue, Expression<Func<TModel, long>> propertyExpression, long value)
+    public void ConditionVersionEquals<TModel>(KeyValue keyValue, Expression<Func<TModel, long?>> propertyExpression, long? value)
     {
         try
         {
-            var request = new ConditionCheckTransactionRequest<TModel>(keyvalue);
+            var request = new ConditionCheckTransactionRequest<TModel>(keyValue);
             request.VersionEquals(propertyExpression, value);
 
             AddRawRequest(request);
         }
-        catch (Exception e)
+        catch (Exception)
         {
             _failedToProcess = true;
             throw;

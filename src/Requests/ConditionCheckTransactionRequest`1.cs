@@ -92,10 +92,10 @@ namespace DynamoDBv2.Transactions.Requests
             AddCondition(propertyExpression, "<", value);
         }
 
-        public void VersionEquals<TV>(Expression<Func<TV, long>> propertyExpression, long expectedVersion)
+        public void VersionEquals<TV>(Expression<Func<TV, long?>> propertyExpression, long? expectedVersion)
         {
             // This assumes that version is a number and stored in DynamoDB as a numeric type
-            AddCondition<TV, long>(propertyExpression, "=", expectedVersion);
+            AddCondition<TV, long?>(propertyExpression, "=", expectedVersion);
         }
 
         private void AddCondition<TV, TValue>(Expression<Func<TV, TValue>> propertyExpression, string comparisonOperator, TValue value)
