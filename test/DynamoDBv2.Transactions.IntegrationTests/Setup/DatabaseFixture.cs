@@ -38,7 +38,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests.Setup
 
         public async Task DisposeAsync()
         {
-           await Db.Client.DeleteTableAsync(nameof(TestTable));
+           //await Db.Client.DeleteTableAsync(nameof(TestTable));
         }
     }
 }

@@ -61,7 +61,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             };
 
             // Act
-            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
                 writer.CreateOrUpdate(t1);
                 writer.PatchAsync<TestTable, decimal>(userId2, table => table.SomeDecimal, 500.5m);
