@@ -47,5 +47,9 @@
     <Rule Id="SA1633" Action="None" />
     <Rule Id="SA1652" Action="None" />
     <Rule Id="CA2017" Action="None" />
+    <Rule Id="SA1618" Action="None" />
+    <Rule Id="CS0168" Action="None" />
+    <Rule Id="SA1629" Action="None" />
+    <Rule Id="SA1642" Action="None" />
   </Rules>
 </RuleSet>

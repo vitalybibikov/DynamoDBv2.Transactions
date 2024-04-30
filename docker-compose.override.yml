@@ -44,4 +44,5 @@ services:
     volumes:
         - './localstack:/var/lib/localstack'
         - /var/run/docker.sock:/var/run/docker.sock
+        # sets up localstack init script:
         #- ./scripts/localstack/dynamodb/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh

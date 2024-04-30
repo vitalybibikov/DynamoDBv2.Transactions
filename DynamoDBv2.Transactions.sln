@@ -25,7 +25,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CI", "CI", "{302323FD-9917-
 		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DynamoDBv2.Transactions.Benchmarks", "test\DynamoDBv2.Transactions.Benchmarks\DynamoDBv2.Transactions.Benchmarks.csproj", "{357ECB97-ED33-47B8-9D87-7E187BCA21EC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamoDBv2.Transactions.Benchmarks", "test\DynamoDBv2.Transactions.Benchmarks\DynamoDBv2.Transactions.Benchmarks.csproj", "{357ECB97-ED33-47B8-9D87-7E187BCA21EC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

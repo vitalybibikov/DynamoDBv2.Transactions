@@ -49,7 +49,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             };
 
             // Act
-            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
                 writer.CreateOrUpdate(t1);
             }
@@ -97,7 +97,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             };
 
             // Act
-            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
                 writer.CreateOrUpdate(t1);
             }
@@ -108,7 +108,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
 
             data1.SomeInt += 1;
 
-            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
                 writer.CreateOrUpdate(data1);
             }
@@ -136,7 +136,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             };
 
             // Act
-            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
                 writer.CreateOrUpdate(t1);
             }
@@ -172,7 +172,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             };
 
             // Act
-            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
                 writer.CreateOrUpdate(t1);
                 writer.CreateOrUpdate(t2);
@@ -200,7 +200,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             await Assert.ThrowsAsync<TransactionCanceledException>(async () =>
             {
                 // Act & Assert
-                await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+                await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
                 {
                     writer.CreateOrUpdate(testTable1);
                     writer.CreateOrUpdate(testTable2);
@@ -226,7 +226,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             };
 
             // Act - Initial save
-            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
                 writer.CreateOrUpdate(testItem);
             }
@@ -239,7 +239,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             await Assert.ThrowsAsync<TransactionCanceledException>(async () =>
             {
                 // Act & Assert
-                await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+                await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
                 {
                     writer.CreateOrUpdate(testItem);
                 }
@@ -291,7 +291,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             };
 
             // Act
-            await using (var writer = new DynamoDbTransactor(new TransactionManager(_fixture.Db.Client)))
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
                 writer.CreateOrUpdate(testItem);
             }
