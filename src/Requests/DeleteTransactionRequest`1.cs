@@ -4,7 +4,10 @@ using DynamoDBv2.Transactions.Requests.Properties;
 
 namespace DynamoDBv2.Transactions.Requests;
 
-public class DeleteTransactionRequest<T> : TransactionRequest
+/// <summary>
+/// Represents a request to perform a <c>DeleteItem</c> operation.
+/// </summary>
+public sealed class DeleteTransactionRequest<T> : TransactionRequest
 {
     public DeleteTransactionRequest(Dictionary<string, AttributeValue> key)
         : base(typeof(T))

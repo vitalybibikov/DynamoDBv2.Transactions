@@ -1,12 +1,15 @@
 ﻿using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Requests.Abstract;
-using DynamoDBv2.Transactions.Requests.Properties;
 
 namespace DynamoDBv2.Transactions.Requests;
 
+/// <summary>
+/// Represents a request to perform a <c>PutItem</c> operation.
+/// </summary>
 public sealed class PutTransactionRequest<T> : TransactionRequest
 {
     public PutItemRequest PutRequest { get; set; }
+
     public override TransactOperationType Type => TransactOperationType.Put;
 
     public PutTransactionRequest(T item)
@@ -18,7 +21,7 @@ public sealed class PutTransactionRequest<T> : TransactionRequest
         }
 
         var convertedItem = DynamoDbMapper.MapToAttribute(item);
-        var (propertyName, value) = DynamoDbMapper.GetVersion(item);
+        var (propertyName, _) = DynamoDbMapper.GetVersion(item);
 
         SetVersion<T>(convertedItem, propertyName);
         PutRequest = new PutItemRequest(TableName, convertedItem);

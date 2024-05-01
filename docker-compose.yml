@@ -13,7 +13,6 @@ services:
     build:
       context: .
       dockerfile: ./test/DynamoDBv2.Transactions.UnitTests/Dockerfile
-
   localstack:
     container_name: localstack
     image: localstack/localstack:latest
