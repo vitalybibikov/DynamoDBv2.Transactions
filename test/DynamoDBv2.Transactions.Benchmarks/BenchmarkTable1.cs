@@ -2,7 +2,7 @@
 
 namespace DynamoDBv2.Transactions.Benchmarks
 {
-    public class BenchmarkTable : ITransactional
+    public class BenchmarkTable1 : ITransactional
     {
         [DynamoDBHashKey("UserId")]
         public string UserId { get; set; }

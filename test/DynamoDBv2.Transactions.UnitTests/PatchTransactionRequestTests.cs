@@ -42,8 +42,6 @@ namespace DynamoDBv2.Transactions.UnitTests
             Assert.Equal(nameof(SomeDynamoDbEntity), update.TableName);
             Assert.Equal("SET #Property = :newValue", update.UpdateExpression);
         }
-
-        // Additional tests...
     }
 
 }

@@ -6,9 +6,20 @@ using DynamoDBv2.Transactions.Requests.Contract;
 
 namespace DynamoDBv2.Transactions;
 
+/// <summary>
+/// Operates on multiple DynamoDB tables to store data in a single transaction.
+/// </summary>
+/// <param name="client"><see cref="IAmazonDynamoDB"/>.</param>
 public sealed class TransactionManager(IAmazonDynamoDB client)
     : ITransactionManager
 {
+    /// <summary>
+    /// In transaction, asynchronously saves items to 1 or many DynamoDB tables.
+    /// </summary>
+    /// <param name="requests">Lists of the operations to be performed during a transaction. </param>
+    /// <param name="token">Cancellation token. </param>
+    /// <returns cref="TransactWriteItemsResponse">Returns TransactWriteItemsResponse response. </returns>
+    /// <exception cref="ArgumentOutOfRangeException">Might throw ArgumentOutOfRangeException. </exception>
     public async Task<TransactWriteItemsResponse?> ExecuteTransactionAsync(IEnumerable<ITransactionRequest> requests, CancellationToken token = default)
     {
         var transactWriteItems = new List<TransactWriteItem>();

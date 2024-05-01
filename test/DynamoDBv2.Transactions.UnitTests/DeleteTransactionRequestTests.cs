@@ -39,8 +39,5 @@ namespace DynamoDBv2.Transactions.UnitTests
             Assert.Equal(nameof(SomeDynamoDbEntity), delete.TableName);  // Assuming TableName is set in the constructor
             Assert.Equal(key, delete.Key);
         }
-
-        // Additional tests...
     }
-
 }
