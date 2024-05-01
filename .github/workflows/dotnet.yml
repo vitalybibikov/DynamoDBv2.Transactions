@@ -12,7 +12,10 @@ on:
     branches: [ "master", "development" ]
   release:
     types:
-      - published    # Run the workflow when a new GitHub release is published
+      - published
+      - prereleased
+    
+  
       
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
@@ -177,5 +180,5 @@ jobs:
         run: |
           for file in $(find ${NuGetDirectory} -name "*.nupkg" -or -name "*.snupkg")
           do
-                dotnet nuget push "$file" --api-key "${{ secrets.NUGET_PUSH_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+                dotnet nuget push "$file" --api-key "${{secrets.NUGET_PUSH_KEY}}" --source https://api.nuget.org/v3/index.json --skip-duplicate
           done
