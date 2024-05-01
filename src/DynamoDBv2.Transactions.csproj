@@ -11,7 +11,7 @@
     <PackageProjectUrl>https://github.com/vitalybibikov/DynamoDBv2.Transactions</PackageProjectUrl>
     <RepositoryUrl>https://github.com/vitalybibikov/DynamoDBv2.Transactions</RepositoryUrl>
     <RepositoryType>GitHub</RepositoryType>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <AssemblyName>DynamoDBv2.Transactions</AssemblyName>
     <EnablePackageValidation>true</EnablePackageValidation>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
@@ -46,7 +46,7 @@
   </ItemGroup>
 
   <ItemGroup>    
-    <PackageReference Include="Microsoft.SourceLink.GitLab" Version="8.0.0" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
