@@ -90,7 +90,7 @@ jobs:
   create_nuget:
     needs: integration-tests
     runs-on: ubuntu-latest
-    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/development') && success()
+    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/development') && success() || github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'prereleased')
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
