@@ -19,6 +19,7 @@
     <PackageIcon>icon.png</PackageIcon>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Description>DynamoDBv2.Transactions is a .NET library that provides a robust wrapper around the Amazon DynamoDB low-level API, enabling easy and efficient management of transactions for batch operations.</Description>
   </PropertyGroup>
 
   <PropertyGroup>
