@@ -87,21 +87,26 @@ jobs:
   create_nuget:
     needs: integration-tests
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' && success()
+    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/development') && success()
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+  
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-
+  
       - name: Build and Pack
         run: |
           dotnet build src/DynamoDBv2.Transactions.csproj --configuration Release
-          dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=3.7.$GITHUB_RUN_NUMBER
-
+          if [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            SUFFIX=""
+          else
+            SUFFIX="-beta"
+          fi
+          dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=3.7.$GITHUB_RUN_NUMBER$SUFFIX
+  
       - name: Create NuGet Artifact
         uses: actions/upload-artifact@v3
         with:
@@ -109,7 +114,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: ${{ env.NuGetDirectory }}/*.nupkg
-
+          
   validate_nuget:
     runs-on: ubuntu-latest
     needs: [ create_nuget, integration-tests ]
