@@ -105,8 +105,8 @@ jobs:
           else
             SUFFIX="-beta"
           fi
-          dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=3.7.$GITHUB_RUN_NUMBER$SUFFIX
-  
+          dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} --include-symbols /p:SymbolPackageFormat=snupkg /p:Version=3.7.$GITHUB_RUN_NUMBER$SUFFIX
+        
       - name: Create NuGet Artifact
         uses: actions/upload-artifact@v3
         with:
@@ -152,7 +152,7 @@ jobs:
 
       - name: Publish NuGet package
         run: |
-          for file in $(find ${NuGetDirectory} -name "*.nupkg")
+          for file in $(find ${NuGetDirectory} -name "*.nupkg" -or -name "*.snupkg")
           do
-                dotnet nuget push "$file" --api-key "${{secrets.NUGET_PUSH_KEY}}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+                dotnet nuget push "$file" --api-key "${{ secrets.NUGET_PUSH_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
           done
