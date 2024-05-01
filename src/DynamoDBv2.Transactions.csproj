@@ -24,7 +24,6 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <DebugType>embedded</DebugType>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
@@ -35,7 +34,6 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <IncludeOpenAPIAnalyzers>true</IncludeOpenAPIAnalyzers>
     <CodeAnalysisRuleSet>..\StyleCop.ruleset</CodeAnalysisRuleSet>
-    
   </PropertyGroup>
 
   <ItemGroup>
