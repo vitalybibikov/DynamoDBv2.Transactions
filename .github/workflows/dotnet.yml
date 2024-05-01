@@ -99,14 +99,37 @@ jobs:
   
       - name: Build and Pack
         run: |
-          dotnet build src/DynamoDBv2.Transactions.csproj --configuration Release
+          # Extracting version number from .csproj file
+          AWS_SDK_VERSION=$(grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' src/DynamoDBv2.Transactions.csproj)
+          echo "Extracted AWSSDK.DynamoDBv2 version: $AWS_SDK_VERSION"
+          
+          # Splitting the version number into components
+          IFS='.' read -r -a VERSION_PARTS <<< "$AWS_SDK_VERSION"
+          
+          # Combine the third and fourth parts if the fourth part exists
+          if [ ${#VERSION_PARTS[@]} -ge 4 ]; then
+            THIRD_FOURTH="${VERSION_PARTS[2]}${VERSION_PARTS[3]}"
+          else
+            THIRD_FOURTH="${VERSION_PARTS[2]}"
+          fi
+          
+          # Construct the final version
+          FINAL_VERSION="${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$THIRD_FOURTH.$GITHUB_RUN_NUMBER"
+      
+          # Append suffix if on development branch
           if [ "${{ github.ref }}" == "refs/heads/master" ]; then
             SUFFIX=""
           else
             SUFFIX="-beta"
           fi
-          dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} --include-symbols /p:SymbolPackageFormat=snupkg /p:Version=3.7.$GITHUB_RUN_NUMBER$SUFFIX
-        
+          FINAL_VERSION="$FINAL_VERSION$SUFFIX"
+          
+          echo "Final package version: $FINAL_VERSION"
+          
+          # Build and pack with the calculated version
+          dotnet build src/DynamoDBv2.Transactions.csproj --configuration Release
+          dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=$FINAL_VERSION
+            
       - name: Create NuGet Artifact
         uses: actions/upload-artifact@v3
         with:
