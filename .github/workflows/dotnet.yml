@@ -180,14 +180,14 @@ jobs:
           do
                 dotnet nuget push "$file" --api-key "${{secrets.NUGET_PUSH_KEY}}" --source https://api.nuget.org/v3/index.json --skip-duplicate
           done
+      - name: Github Prep NuGet.config
+        run: dotnet nuget add source --username ${{ github.repository_owner }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
       - name: Publish to GitHub Packages
         run: |
-          echo "github.com: ${{ secrets.GITHUB_TOKEN }}" > $HOME/.nuget/NuGet/NuGet.Config
           for file in $(find ${{ env.NuGetDirectory }} -name "*.nupkg" -or -name "*.snupkg")
           do
-            dotnet nuget push "$file" --api-key ${{ secrets.GITHUB_TOKEN }} --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/" --skip-duplicate
+                dotnet nuget push "$file" --api-key ${{ secrets.GITHUB_TOKEN }} --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/" --skip-duplicate
           done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
           
