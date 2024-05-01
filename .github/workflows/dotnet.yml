@@ -182,3 +182,14 @@ jobs:
           do
                 dotnet nuget push "$file" --api-key "${{secrets.NUGET_PUSH_KEY}}" --source https://api.nuget.org/v3/index.json --skip-duplicate
           done
+      - name: Publish to GitHub Packages
+        run: |
+          echo "github.com: ${{ secrets.GITHUB_TOKEN }}" > $HOME/.nuget/NuGet/NuGet.Config
+          for file in $(find ${{ env.NuGetDirectory }} -name "*.nupkg" -or -name "*.snupkg")
+          do
+            dotnet nuget push "$file" --api-key ${{ secrets.GITHUB_TOKEN }} --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/" --skip-duplicate
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          
