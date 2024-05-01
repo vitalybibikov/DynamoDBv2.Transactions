@@ -4,7 +4,8 @@ permissions:
     contents: read
     pull-requests: write # required if create-pr-comment: true
     checks: write       # required if create-status-check: true
-
+    packages: write
+    
 on:
   push:
     branches: [ "master", "development" ]
