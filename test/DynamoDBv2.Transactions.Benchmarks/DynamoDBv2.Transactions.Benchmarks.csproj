@@ -16,7 +16,7 @@
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
     <PackageReference Include="BenchmarkDotNet.Annotations" Version="0.13.12" />
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.302.15" />
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.302.26" />
   </ItemGroup>
 
   <ItemGroup>
