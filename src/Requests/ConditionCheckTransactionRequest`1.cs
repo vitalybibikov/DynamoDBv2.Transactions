@@ -1,5 +1,4 @@
 ﻿using System.Linq.Expressions;
-using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Requests.Abstract;
 using DynamoDBv2.Transactions.Requests.Properties;
@@ -17,19 +16,14 @@ namespace DynamoDBv2.Transactions.Requests
         public ConditionCheckTransactionRequest(KeyValue keyValue)
             : base(typeof(T))
         {
-            Key = GetKey(keyValue);
+            Initialize(keyValue);
         }
 
         public ConditionCheckTransactionRequest(string keyValue)
             : base(typeof(T))
         {
             var key = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
-
-            Key = GetKey(new KeyValue
-            {
-                Key = key,
-                Value = keyValue
-            });
+            Initialize(new KeyValue { Key = key, Value = keyValue });
         }
 
         public ConditionCheckTransactionRequest(T model)
@@ -45,11 +39,7 @@ namespace DynamoDBv2.Transactions.Requests
 
             var keyValue = attributes[key];
 
-            Key = GetKey(new KeyValue
-            {
-                Key = key,
-                Value = keyValue.S
-            });
+            Initialize(new KeyValue { Key = key, Value = keyValue.S });
         }
 
         public override Operation GetOperation()
@@ -106,6 +96,11 @@ namespace DynamoDBv2.Transactions.Requests
             ExpressionAttributeNames[$"#{propertyName}"] = propertyName;
             ExpressionAttributeValues[$":{propertyName}Value"] = attributeValue!;
             ConditionExpression += $"{ConditionExpression} #{propertyName} {comparisonOperator} :{propertyName}Value AND ";
+        }
+
+        private void Initialize(KeyValue keyValue)
+        {
+            Key = GetKey(keyValue);
         }
 
         private string GetPropertyName<TV, TValue>(Expression<Func<TV, TValue>> expression)
