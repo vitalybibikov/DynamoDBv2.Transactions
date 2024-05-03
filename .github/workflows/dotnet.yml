@@ -34,6 +34,9 @@ jobs:
           docker-compose pull
           docker-compose build
 
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
       - name: Run tests
         run: docker-compose up --exit-code-from tests tests localstack
 
@@ -46,6 +49,16 @@ jobs:
         with:
           name: trx-test-results
           path: ./test-results/*.trx
+
+      - name: Merge Coverage Reports
+        run: reportgenerator "-reports:${{ github.workspace }}/test-results/coverage_*.cobertura.xml" "-targetdir:${{ github.workspace }}/test-results/merged-report" "-reporttypes:Html"
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          directory: ${{ github.workspace }}/test-results/merged-report
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Clean up
         run: docker-compose down
