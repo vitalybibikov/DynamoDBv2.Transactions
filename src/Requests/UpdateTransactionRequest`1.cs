@@ -3,7 +3,10 @@ using DynamoDBv2.Transactions.Requests.Abstract;
 
 namespace DynamoDBv2.Transactions.Requests;
 
-public class UpdateTransactionRequest<T> : TransactionRequest
+/// <summary>
+/// Represents a request to perform an <c>UpdateItem</c> operation.
+/// </summary>
+public sealed class UpdateTransactionRequest<T> : TransactionRequest
 {
     public UpdateTransactionRequest(string? expression = default)
         : base(typeof(T))

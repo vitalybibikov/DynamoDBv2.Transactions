@@ -25,6 +25,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CI", "CI", "{302323FD-9917-
 		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
 	EndProjectSection
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamoDBv2.Transactions.Benchmarks", "test\DynamoDBv2.Transactions.Benchmarks\DynamoDBv2.Transactions.Benchmarks.csproj", "{357ECB97-ED33-47B8-9D87-7E187BCA21EC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,6 +49,10 @@ Global
 		{07AC13F3-4DBC-4740-9F50-4900C577B715}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{07AC13F3-4DBC-4740-9F50-4900C577B715}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{07AC13F3-4DBC-4740-9F50-4900C577B715}.Release|Any CPU.Build.0 = Release|Any CPU
+		{357ECB97-ED33-47B8-9D87-7E187BCA21EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{357ECB97-ED33-47B8-9D87-7E187BCA21EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{357ECB97-ED33-47B8-9D87-7E187BCA21EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{357ECB97-ED33-47B8-9D87-7E187BCA21EC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -55,6 +61,7 @@ Global
 		{851AFB8C-EE42-4B52-8477-790FE0B11836} = {66FA6502-7AA5-4A6C-BE78-18841D6A5125}
 		{9CD758F7-E15A-42F4-ADFF-E55C53B34DAE} = {8B251448-C404-4733-8587-BE8EFB8AF9F2}
 		{1BDBD629-557E-41C1-AA1A-BCDE293EF0A6} = {8B251448-C404-4733-8587-BE8EFB8AF9F2}
+		{357ECB97-ED33-47B8-9D87-7E187BCA21EC} = {8B251448-C404-4733-8587-BE8EFB8AF9F2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4552FA47-3E49-48B6-8452-3B8E57C5FB24}

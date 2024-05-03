@@ -2,6 +2,9 @@
 
 namespace DynamoDBv2.Transactions.Requests.Contract;
 
+/// <summary>
+///  Contract for the DynamoDBv2.Transactions.Requests, that defines one of <see cref="TransactOperationType"/> operations.
+/// </summary>
 public interface ITransactionRequest
 {
     string TableName { get; }

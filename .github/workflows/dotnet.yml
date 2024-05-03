@@ -4,7 +4,8 @@ permissions:
     contents: read
     pull-requests: write # required if create-pr-comment: true
     checks: write       # required if create-status-check: true
-
+    packages: write
+    
 on:
   push:
     branches: [ "master", "development" ]
@@ -12,7 +13,8 @@ on:
     branches: [ "master", "development" ]
   release:
     types:
-      - published    # Run the workflow when a new GitHub release is published
+      - published
+  
       
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
@@ -32,6 +34,9 @@ jobs:
           docker-compose pull
           docker-compose build
 
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
       - name: Run tests
         run: docker-compose up --exit-code-from tests tests localstack
 
@@ -39,11 +44,29 @@ jobs:
         run: docker-compose up --exit-code-from unittests unittests
         
       - name: Upload TRX test results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: always()  # This ensures it runs even if the previous steps fail
         with:
           name: trx-test-results
           path: ./test-results/*.trx
+
+      - name: Merge Coverage Reports
+        run: reportgenerator "-reports:${{ github.workspace }}/test-results/coverage_*.cobertura.xml" "-targetdir:${{ github.workspace }}/coverage-results/" "-reporttypes:Cobertura"
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always()  # This ensures it runs even if the previous steps fail
+        with:
+          name: coverage-results
+          path: ./coverage-results/*.html
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          directory: ./coverage-results
+          files: '*.xml'
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Clean up
         run: docker-compose down
@@ -87,21 +110,49 @@ jobs:
   create_nuget:
     needs: integration-tests
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' && success()
+    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/development') && success() || github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'prereleased')
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+  
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-
+  
       - name: Build and Pack
         run: |
+          # Extracting version number from .csproj file
+          AWS_SDK_VERSION=$(grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' src/DynamoDBv2.Transactions.csproj)
+          echo "Extracted AWSSDK.DynamoDBv2 version: $AWS_SDK_VERSION"
+          
+          # Splitting the version number into components
+          IFS='.' read -r -a VERSION_PARTS <<< "$AWS_SDK_VERSION"
+          
+          # Combine the third and fourth parts if the fourth part exists
+          if [ ${#VERSION_PARTS[@]} -ge 4 ]; then
+            THIRD_FOURTH="${VERSION_PARTS[2]}${VERSION_PARTS[3]}"
+          else
+            THIRD_FOURTH="${VERSION_PARTS[2]}"
+          fi
+          
+          # Construct the final version
+          FINAL_VERSION="${VERSION_PARTS[0]}.${VERSION_PARTS[1]}.$THIRD_FOURTH.$GITHUB_RUN_NUMBER"
+      
+          # Append suffix if on development branch
+          if [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            SUFFIX=""
+          else
+            SUFFIX="-beta"
+          fi
+          FINAL_VERSION="$FINAL_VERSION$SUFFIX"
+          
+          echo "Final package version: $FINAL_VERSION"
+          
+          # Build and pack with the calculated version
           dotnet build src/DynamoDBv2.Transactions.csproj --configuration Release
-          dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=3.7.$GITHUB_RUN_NUMBER
-
+          dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=$FINAL_VERSION
+            
       - name: Create NuGet Artifact
         uses: actions/upload-artifact@v3
         with:
@@ -109,7 +160,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: ${{ env.NuGetDirectory }}/*.nupkg
-
+          
   validate_nuget:
     runs-on: ubuntu-latest
     needs: [ create_nuget, integration-tests ]
@@ -124,7 +175,9 @@ jobs:
           path: ${{ env.NuGetDirectory }}
     - name: Install nuget validator
       run: dotnet tool update Meziantou.Framework.NuGetPackageValidation.Tool --global
-          
+    - name: Validate package
+      run: meziantou.validate-nuget-package $(ls "${{ env.NuGetDirectory }}"/*.nupkg) --excluded-rules Symbols
+      
   deploy:
     # Publish only when creating a GitHub Release
     # https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository
@@ -145,7 +198,18 @@ jobs:
 
       - name: Publish NuGet package
         run: |
-          for file in $(find ${NuGetDirectory} -name "*.nupkg")
+          for file in $(find ${NuGetDirectory} -name "*.nupkg" -or -name "*.snupkg")
           do
                 dotnet nuget push "$file" --api-key "${{secrets.NUGET_PUSH_KEY}}" --source https://api.nuget.org/v3/index.json --skip-duplicate
           done
+      - name: Github Prep NuGet.config
+        run: dotnet nuget add source --username ${{ github.repository_owner }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+      - name: Publish to GitHub Packages
+        run: |
+          for file in $(find ${{ env.NuGetDirectory }} -name "*.nupkg" -or -name "*.snupkg")
+          do
+                dotnet nuget push "$file" --api-key ${{ secrets.GITHUB_TOKEN }} --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/" --skip-duplicate
+          done
+
+          
