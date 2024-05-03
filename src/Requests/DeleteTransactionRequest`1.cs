@@ -12,24 +12,29 @@ public sealed class DeleteTransactionRequest<T> : TransactionRequest
     public DeleteTransactionRequest(Dictionary<string, AttributeValue> key)
         : base(typeof(T))
     {
-        Key = key;
+        SetKey(key);
     }
 
     public DeleteTransactionRequest(KeyValue keyValue)
         : base(typeof(T))
     {
-        Key = GetKey(keyValue);
+        SetKey(GetKey(keyValue));
     }
 
     public DeleteTransactionRequest(string keyValue)
         : base(typeof(T))
     {
         var key = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
-        Key = GetKey(new KeyValue
+        SetKey(GetKey(new KeyValue
         {
             Key = key,
             Value = keyValue
-        });
+        }));
+    }
+
+    private void SetKey(Dictionary<string, AttributeValue> key)
+    {
+        Key = key;
     }
 
     public override TransactOperationType Type => TransactOperationType.Delete;
