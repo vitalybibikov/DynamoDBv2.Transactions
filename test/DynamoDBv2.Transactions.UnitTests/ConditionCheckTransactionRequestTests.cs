@@ -1,5 +1,6 @@
 ﻿using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Requests;
+using DynamoDBv2.Transactions.Requests.Properties;
 using DynamoDBv2.Transactions.UnitTests.Setup;
 using Xunit;
 
@@ -11,7 +12,8 @@ namespace DynamoDBv2.Transactions.UnitTests
         public void Constructor_SetsCorrectType()
         {
             // Arrange & Act
-            var request = new ConditionCheckTransactionRequest<SomeDynamoDbEntity>();
+            var request = new ConditionCheckTransactionRequest<SomeDynamoDbEntity>(new KeyValue()
+                { Key = nameof(SomeDynamoDbEntity.Id), Value = "123" });
 
             // Assert
             Assert.Equal(TransactOperationType.ConditionCheck, request.Type);
@@ -21,7 +23,7 @@ namespace DynamoDBv2.Transactions.UnitTests
         public void GetOperation_ReturnsCorrectOperationDetails()
         {
             // Arrange
-            var request = new ConditionCheckTransactionRequest<SomeDynamoDbEntity>()
+            var request = new ConditionCheckTransactionRequest<SomeDynamoDbEntity>(new KeyValue() { Key = nameof(SomeDynamoDbEntity.Id), Value = "123" })
             {
                 Key = new Dictionary<string, AttributeValue> { { "Id", new AttributeValue { S = "123" } } },
                 ConditionExpression = "attribute_exists(Id)"
@@ -37,8 +39,5 @@ namespace DynamoDBv2.Transactions.UnitTests
             Assert.Equal(nameof(SomeDynamoDbEntity), conditionCheck.TableName);
             Assert.Equal("attribute_exists(Id)", conditionCheck.ConditionExpression);
         }
-
-        // Additional tests can be added here...
     }
-
 }

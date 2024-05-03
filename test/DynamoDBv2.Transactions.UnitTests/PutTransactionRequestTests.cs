@@ -57,8 +57,5 @@ namespace DynamoDBv2.Transactions.UnitTests
             Assert.Equal(nameof(SomeDynamoDbEntity), put.TableName);
             Assert.Equal(request.PutRequest.Item, put.Item);
         }
-
-        // Additional tests...
     }
-
 }
