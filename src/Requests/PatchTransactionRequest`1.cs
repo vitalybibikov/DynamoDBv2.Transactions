@@ -97,20 +97,6 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
         ExpressionAttributeValues.Add(":newValue", val);
     }
 
-    private void Setup(string keyValue, AttributeValue? attributeValue, string key, string propertyName)
-    {
-        if (attributeValue != null)
-        {
-            Key = GetKey(new KeyValue
-            {
-                Key = key,
-                Value = keyValue
-            });
-
-            Init(propertyName, attributeValue);
-        }
-    }
-
     private void Setup(string keyName, AttributeValue keyValue, AttributeValue? attributeValue, string propertyName)
     {
         if (attributeValue != null)

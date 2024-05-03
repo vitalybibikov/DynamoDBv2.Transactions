@@ -396,7 +396,6 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             });
         }
 
-
         [Fact]
         public async Task SaveDataAndValidateThatVersionConditionCheckIsTrue()
         {
