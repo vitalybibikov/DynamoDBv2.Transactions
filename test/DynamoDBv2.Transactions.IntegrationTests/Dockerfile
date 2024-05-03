@@ -6,4 +6,4 @@ WORKDIR "/app/test-results"
 WORKDIR "/test/DynamoDBv2.Transactions.IntegrationTests"
 RUN dotnet build "DynamoDBv2.Transactions.IntegrationTests.csproj"
 
-ENTRYPOINT ["dotnet", "test", "--logger", "trx;LogFileName=/app/test-results/testresults.trx"]
+ENTRYPOINT ["dotnet", "test", "--logger", "trx;LogFileName=/app/test-results/testresults.trx", "/p:CollectCoverage=true", "/p:CoverletOutputFormat=cobertura", "/p:CoverletOutput=/app/test-results/coverage_integrationtests.xml"]
