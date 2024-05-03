@@ -50,6 +50,9 @@ jobs:
           name: trx-test-results
           path: ./test-results/*.trx
 
+      - name: Set Permissions for Test Results Directory
+        run: mkdir -p ${{ github.workspace }}/test-results/merged-report
+        
       - name: Merge Coverage Reports
         run: reportgenerator "-reports:${{ github.workspace }}/test-results/coverage_*.cobertura.xml" "-targetdir:${{ github.workspace }}/test-results/merged-report" "-reporttypes:Html"
 
