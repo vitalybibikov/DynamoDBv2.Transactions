@@ -7,7 +7,7 @@ using DynamoDBv2.Transactions.Requests.Properties;
 
 namespace DynamoDBv2.Transactions;
 
-public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
+public class DynamoDbTransactor : IDynamoDbTransactor
 {
     private readonly ITransactionManager _manager;
     public bool ErrorDuringExecution { get; private set; } = false;
@@ -230,7 +230,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
     }
 
-    public void AddRawRequest(ITransactionRequest request)
+    public virtual void AddRawRequest(ITransactionRequest request)
     {
         try
         {

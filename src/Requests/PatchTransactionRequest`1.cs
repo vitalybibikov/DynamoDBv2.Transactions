@@ -40,7 +40,9 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
         var propertyName = DynamoDbMapper.GetPropertyAttributedName(ItemType, value.Name!);
         var key = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
 
-        Setup(keyValue, attributeValue, key, propertyName);
+        var keyAttribute = new AttributeValue { S = keyValue };
+
+        Setup(key, keyAttribute, attributeValue, propertyName);
     }
 
     /// <summary>
@@ -70,7 +72,7 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
         var keyValue = attributes[key];
         var attributeValue = attributes[propertyAttributedName];
 
-        Setup(keyValue.S, attributeValue, key, propertyAttributedName);
+        Setup(key, keyValue, attributeValue, propertyAttributedName);
     }
 
     public override Operation GetOperation()
@@ -105,6 +107,17 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
                 Value = keyValue
             });
 
+            Init(propertyName, attributeValue);
+        }
+    }
+
+    private void Setup(string keyName, AttributeValue keyValue, AttributeValue? attributeValue, string propertyName)
+    {
+        if (attributeValue != null)
+        {
+            var key = new Dictionary<string, AttributeValue> { { keyName, keyValue } };
+
+            Key = key;
             Init(propertyName, attributeValue);
         }
     }

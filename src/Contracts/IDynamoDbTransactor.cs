@@ -6,8 +6,13 @@ namespace DynamoDBv2.Transactions.Contracts
     /// <summary>
     /// Main interface for DynamoDB transactions.
     /// </summary>
-    public interface IDynamoDbTransactor
+    public interface IDynamoDbTransactor : IAsyncDisposable
     {
+        /// <summary>
+        ///  Gets a value indicating whether an error has occurred during the execution of the transaction.
+        /// </summary>
+        public bool ErrorDuringExecution { get; }
+
         /// <summary>
         /// Initiates an operation to create or update an item, that will be part of a transaction.
         /// </summary>
