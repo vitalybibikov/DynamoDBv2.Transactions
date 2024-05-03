@@ -51,7 +51,7 @@ jobs:
           path: ./test-results/*.trx
 
       - name: Merge Coverage Reports
-        run: reportgenerator "-reports:${{ github.workspace }}/test-results/coverage_*.cobertura.xml" "-targetdir:${{ github.workspace }}/coverage-results/"
+        run: reportgenerator "-reports:${{ github.workspace }}/test-results/coverage_*.cobertura.xml" "-targetdir:${{ github.workspace }}/coverage-results/" "-reporttypes:Cobertura"
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
@@ -64,6 +64,7 @@ jobs:
         uses: codecov/codecov-action@v4.0.1
         with:
           directory: ./coverage-results
+          files: '*.xml'
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
 
