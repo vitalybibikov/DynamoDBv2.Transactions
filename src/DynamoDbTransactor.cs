@@ -10,7 +10,7 @@ namespace DynamoDBv2.Transactions;
 public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
 {
     private readonly ITransactionManager _manager;
-    private bool _failedToProcess = false;
+    public bool ErrorDuringExecution { get; private set; } = false;
 
     private List<ITransactionRequest> Requests { get; } = [];
 
@@ -33,7 +33,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
         catch (Exception)
         {
-            _failedToProcess = true;
+            ErrorDuringExecution = true;
             throw;
         }
     }
@@ -47,7 +47,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
         catch (Exception)
         {
-            _failedToProcess = true;
+            ErrorDuringExecution = true;
             throw;
         }
     }
@@ -83,7 +83,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
         catch (Exception)
         {
-            _failedToProcess = true;
+            ErrorDuringExecution = true;
             throw;
         }
     }
@@ -112,7 +112,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
         catch (Exception)
         {
-            _failedToProcess = true;
+            ErrorDuringExecution = true;
             throw;
         }
     }
@@ -145,7 +145,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
         catch (Exception)
         {
-            _failedToProcess = true;
+            ErrorDuringExecution = true;
             throw;
         }
     }
@@ -161,7 +161,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
         catch (Exception)
         {
-            _failedToProcess = true;
+            ErrorDuringExecution = true;
             throw;
         }
     }
@@ -177,7 +177,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
         catch (Exception)
         {
-            _failedToProcess = true;
+            ErrorDuringExecution = true;
             throw;
         }
     }
@@ -193,7 +193,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
         catch (Exception)
         {
-            _failedToProcess = true;
+            ErrorDuringExecution = true;
             throw;
         }
     }
@@ -209,7 +209,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
         catch (Exception)
         {
-            _failedToProcess = true;
+            ErrorDuringExecution = true;
             throw;
         }
     }
@@ -225,7 +225,7 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
         catch (Exception)
         {
-            _failedToProcess = true;
+            ErrorDuringExecution = true;
             throw;
         }
     }
@@ -238,14 +238,14 @@ public sealed class DynamoDbTransactor : IAsyncDisposable, IDynamoDbTransactor
         }
         catch (Exception)
         {
-            _failedToProcess = true;
+            ErrorDuringExecution = true;
             throw;
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (!_failedToProcess)
+        if (!ErrorDuringExecution)
         {
             await _manager.ExecuteTransactionAsync(Requests);
         }
