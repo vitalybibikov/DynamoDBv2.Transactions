@@ -50,16 +50,13 @@ jobs:
           name: trx-test-results
           path: ./test-results/*.trx
 
-      - name: Set Permissions for Test Results Directory
-        run: mkdir -p ${{ github.workspace }}/test-results/merged-report && sudo chmod -R 777 ${{ github.workspace }}/test-results
-        
       - name: Merge Coverage Reports
-        run: reportgenerator "-reports:${{ github.workspace }}/test-results/coverage_*.cobertura.xml" "-targetdir:${{ github.workspace }}/test-results/merged-report" "-reporttypes:Html"
+        run: reportgenerator "-reports:${{ github.workspace }}/test-results/coverage_*.cobertura.xml" "-targetdir:${{ github.workspace }}/test-results/merged-report" "-reporttypes:Html " "-reportfilename:merged_coverage_report.html"
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
         with:
-          directory: ${{ github.workspace }}/test-results/merged-report
+          directory: ${{ github.workspace }}/test-results/merged_coverage_report.html
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
 
