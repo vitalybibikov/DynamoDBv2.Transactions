@@ -73,6 +73,36 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             Assert.Null(data1);
         }
 
+        [Fact]
+        public async Task SaveDataToTableAndDelete_ctor3()
+        {
+            //Arrange
+            var userId1 = Guid.NewGuid().ToString();
+
+            var t1 = new TestTable
+            {
+                UserId = userId1,
+                SomeDate = DateTime.UtcNow,
+                SomeDecimal = (decimal)123.45,
+                SomeFloat = (float)123.45,
+                SomeInt = 123
+            };
+
+            // Act
+            await _fixture.Db.Context.SaveAsync(t1);
+
+            await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
+
+            {
+                writer.DeleteAsync<TestTable>(userId1);
+            }
+
+            // Assert
+            var data1 = await _fixture.Db.Context.LoadAsync<TestTable>(userId1);
+
+            Assert.Null(data1);
+        }
+
 
         [Fact]
         public async Task DeleteNonExistingItem()
