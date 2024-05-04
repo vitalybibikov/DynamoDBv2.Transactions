@@ -16,11 +16,16 @@ It skips additional implicit for some cases DescribeTable call, thus making Dyna
 
 ## Features
 
-- **Transactional Operations**: Supports `CreateOrUpdate`, `Delete`, and `Patch` operations within transactions.
+- **Transactional Operations**: Supports `CreateOrUpdate`, `Delete`, and `Update`and `ConditionCheck` operations within transactions.
 - **Error Handling**: Gracefully handles transaction failures and rollbacks.
 - **Versioning Support**: Automatic handling of version increments for transactional integrity.
 - **Easy Integration**: Seamlessly integrates with existing DynamoDB setups.
 - **Asynchronous API**: Fully asynchronous API for optimal performance.
+
+## Plans
+- Add Source Generator in order to validate abscence of [DynamoDBHashKey("UserId")] attribute
+- Write more tests on SortKey
+- Write more benchmarks.
 
 ## Installation
 
@@ -39,7 +44,8 @@ To get started with DynamoDBv2.Transactions, you'll need to set up an instance o
 Ensure you have the AWS SDK for .NET configured in your project, with access to Amazon DynamoDB.
 
 ### Example Usage
-
+!!! It skips additional implicit for some cases DescribeTable call, thus making DynamoDB attribute [DynamoDBHashKey("YourId")] mandatory !!!
+Which makes it faster in comparison with the traditional wrapper.
 Here's a quick example to show you how to use the `TransactionalWriter` to perform a transaction:
 
 ```csharp
@@ -71,6 +77,97 @@ await using (writer)
 var dbContext = new DynamoDBContext(client);
 var data = await dbContext.LoadAsync<TestTable>(userId);
 Console.WriteLine($"Item saved with UserId: {data.UserId}");
+```
+
+### Deleting an Item
+```
+// Arrange
+var userIdToDelete = "unique-user-id";
+
+// Act
+await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
+{
+    transactor.DeleteAsync<TestTable>(userIdToDelete);
+};
+
+// This operation will asynchronously delete the specified item from DynamoDB.
+
+```
+### Patching an Item
+
+```
+// Arrange
+var userIdToPatch = "unique-user-id";
+var updatedDate = DateTime.UtcNow.AddDays(1);
+
+// Act
+await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
+{
+    transactor.PatchAsync<TestTable, DateTime?>(userIdToPatch, t => t.SomeNullableDate1, updatedDate);
+};
+
+// This code patches the 'SomeNullableDate1' property of the specified item to a new date.
+
+```
+
+
+### Adding a conditional check
+
+```
+// Arrange
+var userIdToCheck = "unique-user-id";
+
+// Act
+await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
+{
+    transactor.ConditionGreaterThan<TestTable, int>(userIdToCheck, t => t.SomeInt, 100);
+    transactor.CreateOrUpdate(new TestTable { UserId = userIdToCheck, SomeInt = 200 });
+};
+
+// This will add a conditional check to ensure 'SomeInt' is greater than 100 before updating or creating the item.
+
+```
+
+###  Complex Transaction with Multiple Operations
+
+```
+// Arrange
+var userId = Guid.NewGuid().ToString();
+var testItem = new TestTable
+{
+    UserId = userId,
+    SomeInt = 150,
+    SomeDate = DateTime.UtcNow,
+    SomeBool = true
+};
+
+// Act
+await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
+{
+    transactor.ConditionNotEquals<TestTable, bool>(userId, t => t.SomeBool, false);
+    transactor.CreateOrUpdate(testItem);
+    transactor.PatchAsync<TestTable, int>(userId, t => t.SomeInt, 200);
+};
+
+// This transaction will check if 'SomeBool' is not false, then create or update the item, and finally patch 'SomeInt' to 200.
+
+```
+
+### Version Check Before Update
+```
+// Arrange
+var userId = Guid.NewGuid().ToString();
+var expectedVersion = 1;
+
+// Act
+await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
+{
+    transactor.ConditionVersionEquals<TestTable>(userId, t => t.Version, expectedVersion);
+    transactor.CreateOrUpdate(new TestTable { UserId = userId, SomeInt = 250 });
+};
+
+// This ensures the item's version matches the expected version before it is updated or created.
+
 ```
 
 
