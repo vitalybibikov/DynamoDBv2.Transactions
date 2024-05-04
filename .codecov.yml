@@ -11,8 +11,8 @@ codecov:
         threshold: null  # Allow no drop in coverage
         if_not_found: success
         only_pulls: true
-    # patch:
-    #   default:
-    #     target: '60%'  # Example target for new code in pull requests
-    #     if_not_found: success
-    #     only_pulls: true
+    patch:
+      default:
+        target: '60%'  # Example target for new code in pull requests
+        if_not_found: success
+        only_pulls: true
