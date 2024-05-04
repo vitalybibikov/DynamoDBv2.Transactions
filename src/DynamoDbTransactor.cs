@@ -1,5 +1,6 @@
 ﻿using System.Linq.Expressions;
 using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.DataModel;
 using DynamoDBv2.Transactions.Contracts;
 using DynamoDBv2.Transactions.Requests;
 using DynamoDBv2.Transactions.Requests.Contract;
@@ -123,9 +124,9 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     /// Asynchronously adds a delete operation to the transaction.
     /// </summary>
     /// <param name="key">The key of the item to delete.</param>
-    /// <param name="deletedItemValue">The value to mark the item as deleted.</param>
+    /// <param name="keyValue">The value to mark the item as deleted.</param>
     /// <typeparam name="T">The type of the item.</typeparam>
-    public void DeleteAsync<T>(string key, string deletedItemValue)
+    public void DeleteAsync<T>(string key, string keyValue)
     {
         try
         {
@@ -134,17 +135,41 @@ public class DynamoDbTransactor : IDynamoDbTransactor
                 throw new ArgumentNullException(nameof(key));
             }
 
-            if (deletedItemValue == null)
+            if (keyValue == null)
             {
-                throw new ArgumentNullException(nameof(deletedItemValue));
+                throw new ArgumentNullException(nameof(keyValue));
             }
 
-            var request = new DeleteTransactionRequest<T>(new KeyValue()
+            var request = new DeleteTransactionRequest<T>(new KeyValue
             {
                 Key = key,
-                Value = deletedItemValue
+                Value = keyValue
             });
 
+            AddRawRequest(request);
+        }
+        catch (Exception)
+        {
+            ErrorDuringExecution = true;
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Asynchronously adds a delete operation to the transaction.
+    /// </summary>
+    /// <param name="keyValue">The key value of the item to delete, assumes that <see cref="DynamoDBHashKeyAttribute"/> is set</param>
+    /// <typeparam name="T">The type of the item.</typeparam>
+    public void DeleteAsync<T>(string keyValue)
+    {
+        try
+        {
+            if (keyValue == null)
+            {
+                throw new ArgumentNullException(nameof(keyValue));
+            }
+
+            var request = new DeleteTransactionRequest<T>(keyValue);
             AddRawRequest(request);
         }
         catch (Exception)
@@ -158,18 +183,18 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     /// Asynchronously adds a delete operation to the transaction using a property expression.
     /// </summary>
     /// <param name="propertyNameExpression">An expression indicating the property to use as a key for deletion.</param>
-    /// <param name="deletedItemValue">The value to mark the item as deleted.</param>
+    /// <param name="keyValue">The value to mark the item as deleted.</param>
     /// <typeparam name="TModel">The type of the model.</typeparam>
     /// <typeparam name="TKeyValue">The type of the key value.</typeparam>
-    public void DeleteAsync<TModel, TKeyValue>(Expression<Func<TModel, string>> propertyNameExpression, string deletedItemValue)
+    public void DeleteAsync<TModel, TKeyValue>(Expression<Func<TModel, string>> propertyNameExpression, string keyValue)
     {
         try
         {
             var member = propertyNameExpression.Body as MemberExpression;
 
-            if (deletedItemValue == null)
+            if (keyValue == null)
             {
-                throw new ArgumentNullException(nameof(deletedItemValue));
+                throw new ArgumentNullException(nameof(keyValue));
             }
 
             if (member == null)
@@ -182,7 +207,7 @@ public class DynamoDbTransactor : IDynamoDbTransactor
             var request = new DeleteTransactionRequest<TModel>(new KeyValue
             {
                 Key = propertyName,
-                Value = deletedItemValue
+                Value = keyValue
             });
 
             AddRawRequest(request);
