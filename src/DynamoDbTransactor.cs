@@ -183,7 +183,7 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     /// Asynchronously adds a delete operation to the transaction using a property expression.
     /// </summary>
     /// <param name="propertyNameExpression">An expression indicating the property to use as a key for deletion.</param>
-    /// <param name="keyValue">The value to mark the item as deleted.</param>
+    /// <param name="keyValue">The value to mark the item as deleted. </param>
     /// <typeparam name="TModel">The type of the model.</typeparam>
     /// <typeparam name="TKeyValue">The type of the key value.</typeparam>
     public void DeleteAsync<TModel, TKeyValue>(Expression<Func<TModel, string>> propertyNameExpression, string keyValue)
@@ -223,7 +223,7 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     /// Adds various conditional operations to the transaction based on the expression and value.
     /// Includes conditions for equality, less than, greater than, and not equal.
     /// </summary>
-    /// <param name="keyValue">The key and value indicating the item and property for the condition.</param>
+    /// <param name="keyValue">The key and value indicating the item and property for the condition. Assumes that <see cref="DynamoDBHashKeyAttribute"/> is set.</param>
     /// <param name="propertyExpression">An expression indicating the property to apply the condition to.</param>
     /// <param name="value">The value to compare in the condition.</param>
     /// <typeparam name="TModel">The type of the model.</typeparam>
@@ -231,7 +231,7 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     /// <remarks>
     /// This set of methods is meant to support a variety of conditional operations for transactional integrity.
     /// </remarks>
-    public void ConditionEquals<TModel, TValue>(KeyValue keyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    public void ConditionEquals<TModel, TValue>(string keyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
     {
         try
         {
@@ -250,12 +250,12 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     /// <summary>
     /// Adds a condition to the transaction ensuring the specified property value is less than the provided value.
     /// </summary>
-    /// <param name="keyValue">The key and value indicating the item and property for the condition.</param>
+    /// <param name="keyValue">The key and value indicating the item and property for the condition. Assumes that <see cref="DynamoDBHashKeyAttribute"/> is set.</param>
     /// <param name="propertyExpression">An expression indicating the property to apply the condition to.</param>
     /// <param name="value">The value to compare in the condition.</param>
     /// <typeparam name="TModel">The type of the model.</typeparam>
     /// <typeparam name="TValue">The type of the value.</typeparam>
-    public void ConditionLessThan<TModel, TValue>(KeyValue keyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    public void ConditionLessThan<TModel, TValue>(string keyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
     {
         try
         {
@@ -274,12 +274,12 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     /// <summary>
     /// Adds a condition to the transaction ensuring the specified property value is greater than the provided value.
     /// </summary>
-    /// <param name="keyValue">The key and value indicating the item and property for the condition.</param>
+    /// <param name="keyValue">The key and value indicating the item and property for the condition. Assumes that <see cref="DynamoDBHashKeyAttribute"/> is set.</param>
     /// <param name="propertyExpression">An expression indicating the property to apply the condition to.</param>
     /// <param name="value">The value to compare in the condition.</param>
     /// <typeparam name="TModel">The type of the model.</typeparam>
     /// <typeparam name="TValue">The type of the value.</typeparam>
-    public void ConditionGreaterThan<TModel, TValue>(KeyValue keyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    public void ConditionGreaterThan<TModel, TValue>(string keyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
     {
         try
         {
@@ -298,12 +298,12 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     /// <summary>
     /// Adds a condition to the transaction ensuring the specified property value is not equal to the provided value.
     /// </summary>
-    /// <param name="keyValue">The key and value indicating the item and property for the condition.</param>
+    /// <param name="keyValue">The key and value indicating the item and property for the condition. Assumes that <see cref="DynamoDBHashKeyAttribute"/> is set.</param>
     /// <param name="propertyExpression">An expression indicating the property to apply the condition to.</param>
     /// <param name="value">The value to compare in the condition.</param>
     /// <typeparam name="TModel">The type of the model.</typeparam>
     /// <typeparam name="TValue">The type of the value.</typeparam>
-    public void ConditionNotEquals<TModel, TValue>(KeyValue keyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    public void ConditionNotEquals<TModel, TValue>(string keyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
     {
         try
         {
@@ -322,11 +322,11 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     /// <summary>
     /// Adds a version-check condition to the transaction ensuring the specified property value matches the provided version.
     /// </summary>
-    /// <param name="keyValue">The key and value indicating the item and property for the condition.</param>
+    /// <param name="keyValue">The key and value indicating the item and property for the condition. Assumes that <see cref="DynamoDBHashKeyAttribute"/> is set.</param>
     /// <param name="propertyExpression">An expression indicating the property to apply the version check to.</param>
     /// <param name="value">The expected version value to check against.</param>
     /// <typeparam name="TModel">The type of the model.</typeparam>
-    public void ConditionVersionEquals<TModel>(KeyValue keyValue, Expression<Func<TModel, long?>> propertyExpression, long? value)
+    public void ConditionVersionEquals<TModel>(string keyValue, Expression<Func<TModel, long?>> propertyExpression, long? value)
     {
         try
         {

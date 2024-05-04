@@ -12,8 +12,7 @@ namespace DynamoDBv2.Transactions.UnitTests
         public void Constructor_SetsCorrectType()
         {
             // Arrange & Act
-            var request = new ConditionCheckTransactionRequest<SomeDynamoDbEntity>(new KeyValue()
-                { Key = nameof(SomeDynamoDbEntity.Id), Value = "123" });
+            var request = new ConditionCheckTransactionRequest<SomeDynamoDbEntity>("123" );
 
             // Assert
             Assert.Equal(TransactOperationType.ConditionCheck, request.Type);
@@ -23,7 +22,7 @@ namespace DynamoDBv2.Transactions.UnitTests
         public void GetOperation_ReturnsCorrectOperationDetails()
         {
             // Arrange
-            var request = new ConditionCheckTransactionRequest<SomeDynamoDbEntity>(new KeyValue() { Key = nameof(SomeDynamoDbEntity.Id), Value = "123" })
+            var request = new ConditionCheckTransactionRequest<SomeDynamoDbEntity>("123" )
             {
                 Key = new Dictionary<string, AttributeValue> { { "Id", new AttributeValue { S = "123" } } },
                 ConditionExpression = "attribute_exists(Id)"
