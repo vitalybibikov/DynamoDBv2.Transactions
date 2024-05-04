@@ -171,6 +171,7 @@ namespace DynamoDBv2.Transactions
                 default:
 
                     var isStruct = value.GetType().IsValueType && !value.GetType().IsPrimitive;
+
                     if (value.GetType().IsClass || (value.GetType().IsValueType && !value.GetType().IsPrimitive && !value.GetType().IsEnum))
                     {
                         var attribute = MapToAttribute(value);

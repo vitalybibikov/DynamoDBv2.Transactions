@@ -55,10 +55,9 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 writer.CreateOrUpdate(t1);
             };
 
-            var keyValue = new KeyValue { Key = nameof(TestTable.UserId), Value = userId1 };
             await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
-                writer.ConditionEquals<TestTable, float>(keyValue,table => t1.SomeFloat, 123.456f);
+                writer.ConditionEquals<TestTable, float>(userId1, table => t1.SomeFloat, 123.456f);
             };
         }
 
@@ -100,13 +99,11 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 writer.CreateOrUpdate(t1);
             };
 
-            var keyValue = new KeyValue { Key = nameof(TestTable.UserId), Value = userId1 };
-
             await Assert.ThrowsAsync<TransactionCanceledException>(async () =>
             {
                 await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
                 {
-                    writer.ConditionEquals<TestTable, float>(keyValue, table => t1.SomeFloat, 123f);
+                    writer.ConditionEquals<TestTable, float>(userId1, table => t1.SomeFloat, 123f);
                 };
             });
         }
@@ -149,10 +146,9 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 writer.CreateOrUpdate(t1);
             };
 
-            var keyValue = new KeyValue { Key = nameof(TestTable.UserId), Value = userId1 };
             await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
-                writer.ConditionGreaterThan<TestTable, long>(keyValue, table => t1.SomeLong, (long)int.MaxValue-1);
+                writer.ConditionGreaterThan<TestTable, long>(userId1, table => t1.SomeLong, (long)int.MaxValue-1);
             };
         }
 
@@ -194,14 +190,11 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 writer.CreateOrUpdate(t1);
             };
 
-            var keyValue = new KeyValue { Key = nameof(TestTable.UserId), Value = userId1 };
-
-
             await Assert.ThrowsAsync<TransactionCanceledException>(async () =>
             {
                 await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
                 {
-                    writer.ConditionGreaterThan<TestTable, int>(keyValue, table => t1.SomeInt, 123456789);
+                    writer.ConditionGreaterThan<TestTable, int>(userId1, table => t1.SomeInt, 123456789);
                 };
             });
         }
@@ -244,10 +237,9 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 writer.CreateOrUpdate(t1);
             };
 
-            var keyValue = new KeyValue { Key = nameof(TestTable.UserId), Value = userId1 };
             await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
-                writer.ConditionLessThan<TestTable, long>(keyValue, table => t1.SomeLong, (long)int.MaxValue + 1);
+                writer.ConditionLessThan<TestTable, long>(userId1, table => t1.SomeLong, (long)int.MaxValue + 1);
             };
         }
 
@@ -289,14 +281,11 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 writer.CreateOrUpdate(t1);
             };
 
-            var keyValue = new KeyValue { Key = nameof(TestTable.UserId), Value = userId1 };
-
-
             await Assert.ThrowsAsync<TransactionCanceledException>(async () =>
             {
                 await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
                 {
-                    writer.ConditionLessThan<TestTable, int>(keyValue, table => t1.SomeInt, 123456789);
+                    writer.ConditionLessThan<TestTable, int>(userId1, table => t1.SomeInt, 123456789);
                 };
             });
         }
@@ -342,7 +331,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             var keyValue = new KeyValue { Key = nameof(TestTable.UserId), Value = userId1 };
             await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
-                writer.ConditionNotEquals<TestTable, long>(keyValue, table => t1.SomeLong, 0);
+                writer.ConditionNotEquals<TestTable, long>(userId1, table => t1.SomeLong, 0);
             };
         }
 
@@ -384,18 +373,14 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 writer.CreateOrUpdate(t1);
             };
 
-            var keyValue = new KeyValue { Key = nameof(TestTable.UserId), Value = userId1 };
-
-
             await Assert.ThrowsAsync<TransactionCanceledException>(async () =>
             {
                 await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
                 {
-                    writer.ConditionNotEquals<TestTable, int>(keyValue, table => t1.SomeInt, 123456789);
+                    writer.ConditionNotEquals<TestTable, int>(userId1, table => t1.SomeInt, 123456789);
                 };
             });
         }
-
 
         [Fact]
         public async Task SaveDataAndValidateThatVersionConditionCheckIsTrue()
@@ -435,10 +420,9 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 writer.CreateOrUpdate(t1);
             };
 
-            var keyValue = new KeyValue { Key = nameof(TestTable.UserId), Value = userId1 };
             await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
             {
-                writer.ConditionVersionEquals<TestTable>(keyValue, table => t1.Version, 0);
+                writer.ConditionVersionEquals<TestTable>(userId1, table => t1.Version, 0);
             };
         }
 
@@ -480,13 +464,11 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 writer.CreateOrUpdate(t1);
             };
 
-            var keyValue = new KeyValue { Key = nameof(TestTable.UserId), Value = userId1 };
-
             await Assert.ThrowsAsync<TransactionCanceledException>(async () =>
             {
                 await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
                 {
-                    writer.ConditionVersionEquals<TestTable>(keyValue, table => t1.Version, 100);
+                    writer.ConditionVersionEquals<TestTable>(userId1, table => t1.Version, 100);
                 };
             });
         }

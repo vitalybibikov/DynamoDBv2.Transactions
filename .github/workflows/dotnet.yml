@@ -58,7 +58,7 @@ jobs:
         if: always()  # This ensures it runs even if the previous steps fail
         with:
           name: coverage-results
-          path: ./coverage-results/*.html
+          path: ./coverage-results/*.xml
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
@@ -211,5 +211,3 @@ jobs:
           do
                 dotnet nuget push "$file" --api-key ${{ secrets.GITHUB_TOKEN }} --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/" --skip-duplicate
           done
-
-          
