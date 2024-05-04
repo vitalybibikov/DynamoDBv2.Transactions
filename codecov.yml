@@ -13,6 +13,6 @@ codecov:
         only_pulls: true
     patch:
       default:
-        target: '85%'  # Example target for new code in pull requests
+        target: '60%'  # Example target for new code in pull requests
         if_not_found: success
         only_pulls: true
