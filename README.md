@@ -80,7 +80,7 @@ Console.WriteLine($"Item saved with UserId: {data.UserId}");
 ```
 
 ### Deleting an Item
-```
+```csharp
 // Arrange
 var userIdToDelete = "unique-user-id";
 
@@ -95,7 +95,7 @@ await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
 ```
 ### Patching an Item
 
-```
+```csharp
 // Arrange
 var userIdToPatch = "unique-user-id";
 var updatedDate = DateTime.UtcNow.AddDays(1);
@@ -113,7 +113,7 @@ await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
 
 ### Adding a conditional check
 
-```
+```csharp
 // Arrange
 var userIdToCheck = "unique-user-id";
 
@@ -130,7 +130,7 @@ await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
 
 ###  Complex Transaction with Multiple Operations
 
-```
+```csharp
 // Arrange
 var userId = Guid.NewGuid().ToString();
 var testItem = new TestTable
@@ -154,7 +154,7 @@ await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
 ```
 
 ### Version Check Before Update
-```
+```csharp
 // Arrange
 var userId = Guid.NewGuid().ToString();
 var expectedVersion = 1;
