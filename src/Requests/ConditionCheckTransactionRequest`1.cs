@@ -21,8 +21,10 @@ namespace DynamoDBv2.Transactions.Requests
         public ConditionCheckTransactionRequest(string keyValue)
             : base(typeof(T))
         {
-            var key = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
-            Initialize(new KeyValue { Key = key, Value = keyValue });
+            var keyNameAttributed = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
+            var keyAttribute = new AttributeValue { S = keyValue };
+            var key = new Dictionary<string, AttributeValue> { { keyNameAttributed, keyAttribute } };
+            Key = key;
         }
 
         public override Operation GetOperation()
@@ -79,11 +81,6 @@ namespace DynamoDBv2.Transactions.Requests
             ExpressionAttributeNames[$"#{propertyName}"] = propertyName;
             ExpressionAttributeValues[$":{propertyName}Value"] = attributeValue!;
             ConditionExpression += $"{ConditionExpression} #{propertyName} {comparisonOperator} :{propertyName}Value AND ";
-        }
-
-        private void Initialize(KeyValue keyValue)
-        {
-            Key = GetKey(keyValue);
         }
 
         private string GetPropertyName<TV, TValue>(Expression<Func<TV, TValue>> expression)

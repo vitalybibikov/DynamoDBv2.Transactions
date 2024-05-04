@@ -8,7 +8,6 @@ using DynamoDBv2.Transactions.UnitTests.Setup;
 public class DynamoDbTransactorTests
 {
     private readonly Mock<ITransactionManager> _mockManager;
-    private DynamoDbTransactor _transactor;
 
     public DynamoDbTransactorTests()
     {
