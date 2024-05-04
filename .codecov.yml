@@ -1,0 +1,18 @@
+codecov:
+  require_ci_to_pass: yes
+  coverage:
+    precision: 2
+    round: down
+    range: "65...100"
+
+  status:
+    project:
+      default:
+        threshold: null  # Allow no drop in coverage
+        if_not_found: success
+        only_pulls: true
+    patch:
+      default:
+        target: '60%'  # Example target for new code in pull requests
+        if_not_found: success
+        only_pulls: true
