@@ -2,9 +2,10 @@
 
 namespace DynamoDBv2.Transactions.IntegrationTests.Models
 {
+    [DynamoDBTable("TestTable")]
     public class TestTable : ITransactional
     {
-        [DynamoDBHashKey("UserId")]
+        //[DynamoDBHashKey("UserId")]
         public string UserId { get; set; }
 
         [DynamoDBProperty("SomeInt1")]

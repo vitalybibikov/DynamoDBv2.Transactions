@@ -1,4 +1,5 @@
-﻿using Amazon.DynamoDBv2.Model;
+﻿using Amazon.DynamoDBv2.DataModel;
+using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Requests.Abstract;
 
 namespace DynamoDBv2.Transactions.Requests;
@@ -6,6 +7,7 @@ namespace DynamoDBv2.Transactions.Requests;
 /// <summary>
 /// Represents a request to perform a <c>PutItem</c> operation.
 /// </summary>
+[DynamoDBTable("TestTable")]
 public sealed class PutTransactionRequest<T> : TransactionRequest
 {
     public PutItemRequest PutRequest { get; set; }

@@ -27,6 +27,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CI", "CI", "{302323FD-9917-
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamoDBv2.Transactions.Benchmarks", "test\DynamoDBv2.Transactions.Benchmarks\DynamoDBv2.Transactions.Benchmarks.csproj", "{357ECB97-ED33-47B8-9D87-7E187BCA21EC}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "generators", "generators", "{66C1D2C5-4452-4E62-978A-C71DE3A53ECE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DynamoDBv2.Transactions.Generators", "generators\DynamoDBv2.Transactions.Generators\DynamoDBv2.Transactions.Generators.csproj", "{69CF52E1-B92C-446D-B384-775CD36B63EF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -53,6 +57,10 @@ Global
 		{357ECB97-ED33-47B8-9D87-7E187BCA21EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{357ECB97-ED33-47B8-9D87-7E187BCA21EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{357ECB97-ED33-47B8-9D87-7E187BCA21EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69CF52E1-B92C-446D-B384-775CD36B63EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69CF52E1-B92C-446D-B384-775CD36B63EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69CF52E1-B92C-446D-B384-775CD36B63EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69CF52E1-B92C-446D-B384-775CD36B63EF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -62,6 +70,7 @@ Global
 		{9CD758F7-E15A-42F4-ADFF-E55C53B34DAE} = {8B251448-C404-4733-8587-BE8EFB8AF9F2}
 		{1BDBD629-557E-41C1-AA1A-BCDE293EF0A6} = {8B251448-C404-4733-8587-BE8EFB8AF9F2}
 		{357ECB97-ED33-47B8-9D87-7E187BCA21EC} = {8B251448-C404-4733-8587-BE8EFB8AF9F2}
+		{69CF52E1-B92C-446D-B384-775CD36B63EF} = {66C1D2C5-4452-4E62-978A-C71DE3A53ECE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4552FA47-3E49-48B6-8452-3B8E57C5FB24}

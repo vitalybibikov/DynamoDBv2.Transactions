@@ -20,6 +20,12 @@
     <Description>DynamoDBv2.Transactions is a .NET library that provides a robust wrapper around the Amazon DynamoDB low-level API, enabling easy and efficient management of transactions for batch operations.</Description>
   </PropertyGroup>
 
+
+  <PropertyGroup>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+
   <PropertyGroup>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
@@ -76,6 +82,12 @@
   
   <ItemGroup>
     <None Include="..\icon.png" Pack="true" PackagePath="" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\generators\DynamoDBv2.Transactions.Generators\DynamoDBv2.Transactions.Generators.csproj" 
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <PropertyGroup>
