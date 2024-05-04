@@ -6,8 +6,13 @@ namespace DynamoDBv2.Transactions.Contracts
     /// <summary>
     /// Main interface for DynamoDB transactions.
     /// </summary>
-    public interface IDynamoDbTransactor
+    public interface IDynamoDbTransactor : IAsyncDisposable
     {
+        /// <summary>
+        ///  Gets a value indicating whether an error has occurred during the execution of the transaction.
+        /// </summary>
+        public bool ErrorDuringExecution { get; }
+
         /// <summary>
         /// Initiates an operation to create or update an item, that will be part of a transaction.
         /// </summary>
@@ -38,8 +43,8 @@ namespace DynamoDBv2.Transactions.Contracts
         /// </summary>
         /// <typeparam name="T">Any table item to save</typeparam>
         /// <param name="key">Name of the HASH key on the table</param>
-        /// <param name="deletedItemValue">Value of the HASH Key</param>
-        public void DeleteAsync<T>(string key, string deletedItemValue);
+        /// <param name="keyValue">Value of the HASH Key</param>
+        public void DeleteAsync<T>(string key, string keyValue);
 
         /// <summary>
         /// Initiates an operation to delete an item, that will be part of a transaction.
@@ -47,8 +52,8 @@ namespace DynamoDBv2.Transactions.Contracts
         /// <typeparam name="TModel">A model that contains a property that should be patched.</typeparam>
         /// <typeparam name="TKeyValue">Hash key value of that model that should be deleted.</typeparam>
         /// <param name="propertyNameExpression">Property expression to define name of the HASH property of the table.</param>
-        /// <param name="deletedItemValue">Value to delete.</param>
-        public void DeleteAsync<TModel, TKeyValue>(Expression<Func<TModel, string>> propertyNameExpression, string deletedItemValue);
+        /// <param name="keyValue">Value to delete.</param>
+        public void DeleteAsync<TModel, TKeyValue>(Expression<Func<TModel, string>> propertyNameExpression, string keyValue);
 
         /// <summary>
         /// Adds a raw request of type <see cref="ITransactionRequest"/> to the transaction.

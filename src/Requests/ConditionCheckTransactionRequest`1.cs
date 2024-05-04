@@ -14,42 +14,17 @@ namespace DynamoDBv2.Transactions.Requests
     {
         public override TransactOperationType Type => TransactOperationType.ConditionCheck;
 
-        public ConditionCheckTransactionRequest(KeyValue keyValue)
-            : base(typeof(T))
-        {
-            Key = GetKey(keyValue);
-        }
-
+        /// <summary>
+        /// Checks condition on item by its HASH key value, assumes that <see cref="DynamoDBHashKeyAttribute"/> is set.
+        /// </summary>
+        /// <param name="keyValue">Value of the Key</param>
         public ConditionCheckTransactionRequest(string keyValue)
             : base(typeof(T))
         {
-            var key = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
-
-            Key = GetKey(new KeyValue
-            {
-                Key = key,
-                Value = keyValue
-            });
-        }
-
-        public ConditionCheckTransactionRequest(T model)
-            : base(typeof(T))
-        {
-            if (model == null)
-            {
-                throw new ArgumentNullException(nameof(model));
-            }
-
-            var attributes = DynamoDbMapper.MapToAttribute(model);
-            var key = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
-
-            var keyValue = attributes[key];
-
-            Key = GetKey(new KeyValue
-            {
-                Key = key,
-                Value = keyValue.S
-            });
+            var keyNameAttributed = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
+            var keyAttribute = new AttributeValue { S = keyValue };
+            var key = new Dictionary<string, AttributeValue> { { keyNameAttributed, keyAttribute } };
+            Key = key;
         }
 
         public override Operation GetOperation()

@@ -5,7 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>3.7.0</Version>
+    <Version>3.7.3031.1</Version>
     <Copyright>vitalybibikov</Copyright>
     <PackageTags>DynamoDB Transactions AWSSDK.DynamoDBv2 AWS Amazon aws-sdk-v3 extensions</PackageTags>
     <PackageProjectUrl>https://github.com/vitalybibikov/DynamoDBv2.Transactions</PackageProjectUrl>
@@ -55,7 +55,7 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.302.26">
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.303.1">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
   </ItemGroup>
