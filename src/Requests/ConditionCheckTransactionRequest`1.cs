@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Requests.Abstract;
 using DynamoDBv2.Transactions.Requests.Properties;
@@ -19,6 +20,10 @@ namespace DynamoDBv2.Transactions.Requests
             Initialize(keyValue);
         }
 
+        /// <summary>
+        /// Delete item by its HASH key value, assumes that <see cref="DynamoDBHashKeyAttribute"/> is set.
+        /// </summary>
+        /// <param name="keyValue">Value of the Key</param>
         public ConditionCheckTransactionRequest(string keyValue)
             : base(typeof(T))
         {
