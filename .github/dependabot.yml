@@ -1,0 +1,9 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget" # Set this to "nuget" for .NET projects
+    directory: "/" # Location of the solution or project files
+    schedule:
+      interval: "daily" # How often to check for updates
+    open-pull-requests-limit: 10 # Maximum number of open pull requests Dependabot should have at any time
+    allow:
+      - dependency-type: "direct" # You can set this to "all" to update transitive dependencies too
