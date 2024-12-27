@@ -55,7 +55,7 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.402.11">
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.404.11">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
   </ItemGroup>
