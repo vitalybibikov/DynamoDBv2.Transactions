@@ -10,7 +10,8 @@ It skips additional implicit for some cases DescribeTable call, thus making Dyna
 
 [![codecov](https://codecov.io/gh/vitalybibikov/DynamoDBv2.Transactions/graph/badge.svg?token=CYF75Y00KH)](https://codecov.io/gh/vitalybibikov/DynamoDBv2.Transactions)
 
-• Source Link: ✅ Valid with Symbol Server
+• Source Link: ✅ Valid 
+• Symbol Server ✅ Valid
 • Deterministic (dll/exe): ✅ Valid
 • Compiler Flags: ✅ Valid
 
