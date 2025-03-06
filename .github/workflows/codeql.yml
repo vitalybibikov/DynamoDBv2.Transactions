@@ -36,16 +36,11 @@ jobs:
       with:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
-        # Add any custom queries if needed here
-        # queries: security-extended,security-and-quality
-
+        
     # If build-mode is manual, specify how to build your code
     - if: matrix.build-mode == 'manual'
       run: |
-        # Replace this with your build commands. For example:
-        # For a .NET Core project:
-        dotnet restore
-        dotnet build
+        dotnet build  .\DynamoDBv2.Transactions.sln
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
