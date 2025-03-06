@@ -31,7 +31,7 @@ jobs:
       - name: Set up Docker Compose
         run: |
           docker compose -f docker-compose.yml -f docker-compose.override.yml config
-          docker compose pull localstack
+          docker compose pull
           docker compose build
 
       - name: Install ReportGenerator
@@ -50,8 +50,20 @@ jobs:
           name: trx-test-results
           path: ./test-results/*.trx
 
+      # Debug: List files in the test-results folder before generating the coverage report
+      - name: List test results files
+        run: ls -l ./test-results
+
       - name: Merge Coverage Reports
         run: reportgenerator "-reports:${{ github.workspace }}/test-results/coverage_*.cobertura.xml" "-targetdir:${{ github.workspace }}/coverage-results/" "-reporttypes:Cobertura"
+
+      # Debug: List files in the coverage-results folder after merging reports
+      - name: List coverage results files
+        run: ls -l ./coverage-results
+
+      # Debug: Display the contents of the merged coverage report
+      - name: Debug Coverage Report
+        run: cat ./coverage-results/*.xml
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
