@@ -31,7 +31,7 @@ jobs:
       - name: Set up Docker Compose
         run: |
           docker compose -f docker-compose.yml -f docker-compose.override.yml config
-          docker compose pull
+          docker compose pull localstack
           docker compose build
 
       - name: Install ReportGenerator
