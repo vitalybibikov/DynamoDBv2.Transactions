@@ -166,7 +166,7 @@ jobs:
           dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=$FINAL_VERSION
             
       - name: Create NuGet Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.6.1
         with:
           name: nuget
           if-no-files-found: error
