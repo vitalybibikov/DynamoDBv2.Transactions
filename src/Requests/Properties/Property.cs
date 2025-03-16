@@ -5,8 +5,8 @@
     /// </summary>
     public class Property
     {
-        public string Name { get; set; }
+        public required string Name { get; set; }
 
-        public object? Value { get; set; }
+        public required object? Value { get; set; }
     }
 }

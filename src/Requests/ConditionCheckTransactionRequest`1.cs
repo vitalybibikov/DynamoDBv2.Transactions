@@ -38,11 +38,23 @@ namespace DynamoDBv2.Transactions.Requests
             var check = new ConditionCheck
             {
                 TableName = TableName,
-                Key = Key,
-                ExpressionAttributeNames = ExpressionAttributeNames,
-                ExpressionAttributeValues = ExpressionAttributeValues,
-                ConditionExpression = ConditionExpression
+                Key = Key
             };
+
+            if (ExpressionAttributeNames.Any())
+            {
+                check.ExpressionAttributeNames = ExpressionAttributeNames;
+            }
+
+            if (ExpressionAttributeValues.Any())
+            {
+                check.ExpressionAttributeValues = ExpressionAttributeValues;
+            }
+
+            if (!String.IsNullOrEmpty(ConditionExpression))
+            {
+                check.ConditionExpression = ConditionExpression;
+            }
 
             return Operation.Check(check);
         }
