@@ -32,11 +32,23 @@ public sealed class PutTransactionRequest<T> : TransactionRequest
         var put = new Put
         {
             TableName = TableName,
-            Item = PutRequest.Item,
-            ConditionExpression = ConditionExpression,
-            ExpressionAttributeNames = ExpressionAttributeNames,
-            ExpressionAttributeValues = ExpressionAttributeValues
+            Item = PutRequest.Item
         };
+
+        if (ExpressionAttributeNames.Any())
+        {
+            put.ExpressionAttributeNames = ExpressionAttributeNames;
+        }
+
+        if (ExpressionAttributeValues.Any())
+        {
+            put.ExpressionAttributeValues = ExpressionAttributeValues;
+        }
+
+        if (!String.IsNullOrEmpty(ConditionExpression))
+        {
+            put.ConditionExpression = ConditionExpression;
+        }
 
         return Operation.Put(put);
     }
