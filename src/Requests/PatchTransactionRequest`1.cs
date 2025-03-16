@@ -80,12 +80,28 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
         var update = new Update
         {
             TableName = TableName,
-            Key = Key,
-            UpdateExpression = UpdateExpression,
-            ConditionExpression = ConditionExpression,
-            ExpressionAttributeNames = ExpressionAttributeNames,
-            ExpressionAttributeValues = ExpressionAttributeValues
+            Key = Key
         };
+
+        if (ExpressionAttributeNames.Any())
+        {
+            update.ExpressionAttributeNames = ExpressionAttributeNames;
+        }
+
+        if (ExpressionAttributeValues.Any())
+        {
+            update.ExpressionAttributeValues = ExpressionAttributeValues;
+        }
+
+        if (!String.IsNullOrEmpty(ConditionExpression))
+        {
+            update.ConditionExpression = ConditionExpression;
+        }
+
+        if (!String.IsNullOrEmpty(UpdateExpression))
+        {
+            update.UpdateExpression = UpdateExpression;
+        }
 
         return Operation.Patch(update);
     }

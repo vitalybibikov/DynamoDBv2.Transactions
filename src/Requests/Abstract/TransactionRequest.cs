@@ -20,7 +20,7 @@ namespace DynamoDBv2.Transactions.Requests.Abstract
             {
                 string nextValue = 0.ToString();
 
-                if (convertedItem[propertyName].NULL)
+                if (convertedItem[propertyName].NULL.HasValue)
                 {
                     convertedItem[propertyName] = new AttributeValue { N = 0.ToString() };
                 }
