@@ -114,9 +114,9 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             }
 
             var data2 = await _fixture.Db.Context.LoadAsync<TestTable>(userId1);
+
             Assert.NotNull(data2);
             Assert.Equal(1, data2.Version);
-
             Assert.Equal(123456790, data2.SomeInt);
         }
 
@@ -213,6 +213,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             Assert.Null(data1);
             Assert.Null(data2);
         }
+
         [Fact]
         public async Task FailOnVersionMismatch()
         {
