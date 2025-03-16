@@ -49,11 +49,23 @@ public sealed class DeleteTransactionRequest<T> : TransactionRequest
         var delete = new Delete
         {
             TableName = TableName,
-            Key = Key,
-            ConditionExpression = ConditionExpression,
-            ExpressionAttributeNames = ExpressionAttributeNames,
-            ExpressionAttributeValues = ExpressionAttributeValues
+            Key = Key
         };
+
+        if (ExpressionAttributeNames.Any())
+        {
+            delete.ExpressionAttributeNames = ExpressionAttributeNames;
+        }
+
+        if (ExpressionAttributeValues.Any())
+        {
+            delete.ExpressionAttributeValues = ExpressionAttributeValues;
+        }
+
+        if (!String.IsNullOrEmpty(ConditionExpression))
+        {
+            delete.ConditionExpression = ConditionExpression;
+        }
 
         return Operation.Delete(delete);
     }
