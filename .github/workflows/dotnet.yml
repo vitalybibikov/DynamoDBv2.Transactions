@@ -30,18 +30,18 @@ jobs:
 
       - name: Set up Docker Compose
         run: |
-          docker-compose -f docker-compose.yml -f docker-compose.override.yml config
-          docker-compose pull
-          docker-compose build
+          docker compose -f docker-compose.yml -f docker-compose.override.yml config
+          docker compose pull localstack
+          docker compose build
 
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
       - name: Run tests
-        run: docker-compose up --exit-code-from tests tests localstack
+        run: docker compose up --exit-code-from tests tests localstack
 
       - name: Run tests
-        run: docker-compose up --exit-code-from unittests unittests
+        run: docker compose up --exit-code-from unittests unittests
         
       - name: Upload TRX test results
         uses: actions/upload-artifact@v4
@@ -50,8 +50,20 @@ jobs:
           name: trx-test-results
           path: ./test-results/*.trx
 
+      # Debug: List files in the test-results folder before generating the coverage report
+      - name: List test results files
+        run: ls -l ./test-results
+
       - name: Merge Coverage Reports
         run: reportgenerator "-reports:${{ github.workspace }}/test-results/coverage_*.cobertura.xml" "-targetdir:${{ github.workspace }}/coverage-results/" "-reporttypes:Cobertura"
+
+      # Debug: List files in the coverage-results folder after merging reports
+      - name: List coverage results files
+        run: ls -l ./coverage-results
+
+      # Debug: Display the contents of the merged coverage report
+      - name: Debug Coverage Report
+        run: cat ./coverage-results/*.xml
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
@@ -61,15 +73,14 @@ jobs:
           path: ./coverage-results/*.xml
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.0.1
+        uses: codecov/codecov-action@v5.4.0
         with:
-          directory: ./coverage-results
-          files: '*.xml'
+          files: './coverage-results/*.xml'
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Clean up
-        run: docker-compose down
+        run: docker compose down
         
       - name: Parse Trx files
         uses: NasAmin/trx-parser@v0.5.0
@@ -155,7 +166,7 @@ jobs:
           dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=$FINAL_VERSION
             
       - name: Create NuGet Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.6.1
         with:
           name: nuget
           if-no-files-found: error
@@ -170,7 +181,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
 
-    - uses: actions/download-artifact@v3
+    - uses: actions/download-artifact@v4.1.7
       with:
           name: nuget
           path: ${{ env.NuGetDirectory }}
@@ -188,7 +199,7 @@ jobs:
      needs: [ validate_nuget, integration-tests ]
      steps:
       # Download the NuGet package created in the previous job
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
         with:
           name: nuget
           path: ${{ env.NuGetDirectory }}
