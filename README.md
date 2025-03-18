@@ -4,6 +4,7 @@ DynamoDBv2.Transactions is a .NET library that provides a robust wrapper around 
 It skips additional implicit for some cases DescribeTable call, thus making DynamoDB attributes mandatory - alternatively too using the attributes you can provide KeyName/KeyValue as a separate parameter to a method.
 
 Unit Tests: ![Badge](https://camo.githubusercontent.com/63990e7e4752bde704f569b9db6cce24d94eeb19d12898d1f99579928858f55e/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f3132342f3132342d5041535345442d627269676874677265656e2e737667) 
+
 Integration Tests via localstack: ![Badge](https://camo.githubusercontent.com/6a167e3368c36788b026d8703bcd29d2f0c46199a6cfd14e9b94c7765e036bd3/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f33332f33332d5041535345442d627269676874677265656e2e737667)
 
 [![.github/workflows/dotnet.yml](https://github.com/vitalybibikov/DynamoDBv2.Transactions/actions/workflows/dotnet.yml/badge.svg)](https://github.com/vitalybibikov/DynamoDBv2.Transactions/actions/workflows/dotnet.yml)
