@@ -133,43 +133,25 @@ jobs:
 
       - name: Build and Pack
         run: |
-          # Extract version from csproj
-          AWS_SDK_VERSION=$(grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' src/DynamoDBv2.Transactions.csproj)
-          echo "Extracted AWSSDK.DynamoDBv2 version: $AWS_SDK_VERSION"
-      
-          IFS='.' read -r -a VERSION_PARTS <<< "$AWS_SDK_VERSION"
-      
-          MAJOR="${VERSION_PARTS[0]}"
-          MINOR="${VERSION_PARTS[1]}"
-          PATCH="${VERSION_PARTS[2]}"
-      
-          # Handle missing 4th part as 0
-          if [ ${#VERSION_PARTS[@]} -ge 4 ]; then
-            FOURTH="${VERSION_PARTS[3]}"
-          else
-            FOURTH="0"
-          fi
-      
-          # Convert PATCH and FOURTH into numbers
-          PATCH_NUM=$((10#$PATCH))
-          FOURTH_NUM=$((10#$FOURTH))
-      
-          # Combine PATCH + FOURTH into a 5-digit padded number (PATCH * 100 + FOURTH)
-          COMBINED=$((PATCH_NUM * 100 + FOURTH_NUM))
-      
-          # If COMBINED is less than 5 digits, pad with trailing zeros (e.g., "40600")
-          COMBINED_PADDED=$(printf "%05d" $COMBINED)
-      
-          # FINAL version: MAJOR.MINOR.RUN_NUMBER.COMBINED_PADDED
-          FINAL_VERSION="${MAJOR}.${MINOR}.${GITHUB_RUN_NUMBER}.${COMBINED_PADDED}"
-      
-          echo "🎯 FINAL NuGet VERSION: $FINAL_VERSION"
-      
-          dotnet build src/DynamoDBv2.Transactions.csproj --configuration Release
-          dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=$FINAL_VERSION
+            # Extract version directly from csproj as-is
+            AWS_SDK_VERSION=$(grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' src/DynamoDBv2.Transactions.csproj)
+            echo "Extracted AWSSDK.DynamoDBv2 version: $AWS_SDK_VERSION"
         
+            # Validate against NuGet version rules (max 4 segments)
+            SEGMENT_COUNT=$(awk -F. '{print NF}' <<< "$AWS_SDK_VERSION")
+            if [ "$SEGMENT_COUNT" -gt 4 ]; then
+              echo "❌ Error: AWS SDK version has more than 4 segments: $AWS_SDK_VERSION"
+              exit 1
+            fi
         
-                
+            FINAL_VERSION="$AWS_SDK_VERSION"
+            echo "🎯 FINAL NuGet VERSION: $FINAL_VERSION"
+        
+            dotnet build src/DynamoDBv2.Transactions.csproj --configuration Release
+            dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=$FINAL_VERSION
+        
+      
+        
       - name: Create NuGet Artifact
         uses: actions/upload-artifact@v4.6.1
         with:
