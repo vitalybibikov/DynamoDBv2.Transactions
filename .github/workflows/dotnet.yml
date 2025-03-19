@@ -133,47 +133,39 @@ jobs:
 
       - name: Build and Pack
         run: |
-          # Extracting version number from .csproj file
+          # Extract version from csproj
           AWS_SDK_VERSION=$(grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' src/DynamoDBv2.Transactions.csproj)
           echo "Extracted AWSSDK.DynamoDBv2 version: $AWS_SDK_VERSION"
-          
-          # Splitting the version number into components
+      
           IFS='.' read -r -a VERSION_PARTS <<< "$AWS_SDK_VERSION"
           
-          # VERSION_PARTS[0] = Major
-          # VERSION_PARTS[1] = Minor
-          # VERSION_PARTS[2] = Patch (e.g., 406)
-          # VERSION_PARTS[3] = Build (e.g., 1)
+          MAJOR="${VERSION_PARTS[0]}"
+          MINOR="${VERSION_PARTS[1]}"
+          PATCH="${VERSION_PARTS[2]}"
       
-          # Combine 3rd and 4th part into one
-          THIRD_FOURTH="${VERSION_PARTS[2]}${VERSION_PARTS[3]}"
-          
-          # Compose version numbers array
-          VERSION_NUMBERS=("${VERSION_PARTS[0]}" "${VERSION_PARTS[1]}" "$THIRD_FOURTH" "$GITHUB_RUN_NUMBER")
-          
-          # Ensure we have 5 segments by padding with a "0"
-          while [ ${#VERSION_NUMBERS[@]} -lt 5 ]; do
-            VERSION_NUMBERS+=("0")
-          done
-          
-          FINAL_VERSION=$(IFS='.' ; echo "${VERSION_NUMBERS[*]}")
-          
-          # Add -beta suffix if needed
-          if [ "${{ github.event_name }}" == "release" ]; then
-            SUFFIX=""
+          # If fourth part missing, treat as 0
+          if [ ${#VERSION_PARTS[@]} -ge 4 ]; then
+            FOURTH="${VERSION_PARTS[3]}"
           else
-            SUFFIX="-beta"
+            FOURTH="0"
           fi
-          FINAL_VERSION="$FINAL_VERSION$SUFFIX"
-          
-          echo "Final package version: $FINAL_VERSION"
-          
-          # Build and pack with the calculated version
+      
+          # Merge PATCH and FOURTH and pad to 5 digits
+          COMBINED="${PATCH}${FOURTH}"
+          while [ ${#COMBINED} -lt 5 ]; do
+            COMBINED="${COMBINED}0"
+          done
+      
+          # Compose NuGet version
+          FINAL_VERSION="${MAJOR}.${MINOR}.${COMBINED}.${GITHUB_RUN_NUMBER}"
+      
+          echo "🎯 FINAL NuGet VERSION: $FINAL_VERSION"
+      
           dotnet build src/DynamoDBv2.Transactions.csproj --configuration Release
           dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=$FINAL_VERSION
         
         
-                 
+                
       - name: Create NuGet Artifact
         uses: actions/upload-artifact@v4.6.1
         with:
