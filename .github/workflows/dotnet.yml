@@ -135,12 +135,12 @@ jobs:
             # Validate against NuGet version rules (max 4 segments)
             SEGMENT_COUNT=$(awk -F. '{print NF}' <<< "$AWS_SDK_VERSION")
             if [ "$SEGMENT_COUNT" -gt 4 ]; then
-              echo "❌ Error: AWS SDK version has more than 4 segments: $AWS_SDK_VERSION"
+              echo "Error: AWS SDK version has more than 4 segments: $AWS_SDK_VERSION"
               exit 1
             fi
 
             FINAL_VERSION="$AWS_SDK_VERSION"
-            echo "🎯 FINAL NuGet VERSION: $FINAL_VERSION"
+            echo "FINAL NuGet VERSION: $FINAL_VERSION"
 
             dotnet build src/DynamoDBv2.Transactions.csproj --configuration Release
             dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=$FINAL_VERSION

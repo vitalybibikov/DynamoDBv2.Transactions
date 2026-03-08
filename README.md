@@ -217,27 +217,32 @@ await using (var transactor = new DynamoDbTransactor(client))
 
 ## Benchmark Results
 
-### Mapper Performance (Source-Generated)
+### Mapper Performance: Source-Generated vs Reflection
 
 Isolated mapping operations — no DynamoDB I/O. Entity with 15 properties including all common types.
+Reflection results use warmed-up `ConcurrentDictionary` caches (best-case reflection).
 
 ```
 BenchmarkDotNet v0.15.8, Linux Ubuntu 25.10
-.NET SDK 9.0.311
-  [Host] : .NET 9.0.13, X64 RyuJIT x86-64-v3
+.NET SDK 9.0.311, .NET 9.0.13, X64 RyuJIT x86-64-v3
 
 Runtime=.NET 9.0  IterationCount=20  LaunchCount=3  WarmupCount=5
 ```
 
-| Method                          | Mean        | Error      | StdDev     | Gen0   | Allocated |
-|-------------------------------- |------------:|-----------:|-----------:|-------:|----------:|
-| MapToAttribute (source-gen)     | 3,656.56 ns | 343.541 ns | 739.509 ns | 0.3853 |    3232 B |
-| GetPropertyAttributedName       |    17.46 ns |   0.567 ns |   1.244 ns |      - |       0 B |
-| GetHashKeyAttributeName         |    14.38 ns |   1.083 ns |   2.332 ns |      - |       0 B |
-| GetVersion                      |   149.10 ns |  12.838 ns |  28.714 ns | 0.0067 |      56 B |
-| GetTableName                    |    17.60 ns |   1.764 ns |   3.872 ns |      - |       0 B |
+| Method                                    | Mean         | Allocated | vs Reflection |
+|------------------------------------------ |-------------:|----------:|--------------:|
+| MapToAttribute **(source-generated)**     |  4,048.56 ns |    3232 B |  **4.1x faster** |
+| MapToAttribute (reflection)               | 16,412.42 ns |    4000 B |     baseline  |
+| GetPropertyAttributedName **(source-gen)**|     20.74 ns |       0 B |  **1.9x faster** |
+| GetPropertyAttributedName (reflection)    |     39.38 ns |       0 B |     baseline  |
+| GetHashKeyAttributeName **(source-gen)**  |     14.43 ns |       0 B |  **2.1x faster** |
+| GetHashKeyAttributeName (reflection)      |     30.49 ns |       0 B |     baseline  |
+| GetVersion **(source-generated)**         |    144.75 ns |      56 B |  **1.3x faster** |
+| GetVersion (reflection)                   |    192.52 ns |      56 B |     baseline  |
+| GetTableName **(source-generated)**       |     13.87 ns |       0 B | **82x faster**  |
+| GetTableName (reflection)                 |  1,135.12 ns |     144 B |     baseline  |
 
-Key lookups (`GetPropertyAttributedName`, `GetHashKeyAttributeName`, `GetTableName`) are **zero-allocation** and complete in ~15-18ns via compile-time switch expressions.
+Key lookups are **zero-allocation** via compile-time switch expressions. `MapToAttribute` is **4x faster** by eliminating `PropertyInfo.GetValue()` reflection calls. `GetTableName` is **82x faster** because reflection must call `GetCustomAttribute<DynamoDBTableAttribute>()` on every invocation.
 
 ### End-to-End Transaction Performance
 
