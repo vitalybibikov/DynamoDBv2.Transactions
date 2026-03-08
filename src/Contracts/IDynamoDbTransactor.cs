@@ -14,6 +14,11 @@ namespace DynamoDBv2.Transactions.Contracts
         public bool ErrorDuringExecution { get; }
 
         /// <summary>
+        /// Gets or sets the transaction options (idempotency token, consumed capacity, etc.).
+        /// </summary>
+        public TransactionOptions? Options { get; set; }
+
+        /// <summary>
         /// Initiates an operation to create or update an item, that will be part of a transaction.
         /// </summary>
         /// <typeparam name="T">Any table item to save</typeparam>

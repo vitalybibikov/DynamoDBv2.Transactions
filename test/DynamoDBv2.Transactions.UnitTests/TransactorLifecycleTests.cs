@@ -36,6 +36,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             _mockManager.Verify(
                 m => m.ExecuteTransactionAsync(
                     It.Is<IEnumerable<ITransactionRequest>>(r => r.Count() == 1),
+                    It.IsAny<TransactionOptions?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -56,6 +57,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             _mockManager.Verify(
                 m => m.ExecuteTransactionAsync(
                     It.Is<IEnumerable<ITransactionRequest>>(r => r.Count() == 3),
+                    It.IsAny<TransactionOptions?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -76,6 +78,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             _mockManager.Verify(
                 m => m.ExecuteTransactionAsync(
                     It.Is<IEnumerable<ITransactionRequest>>(r => r.Count() == 4),
+                    It.IsAny<TransactionOptions?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -94,7 +97,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             await transactor.Object.DisposeAsync();
 
             _mockManager.Verify(
-                m => m.ExecuteTransactionAsync(It.IsAny<IEnumerable<ITransactionRequest>>(), It.IsAny<CancellationToken>()),
+                m => m.ExecuteTransactionAsync(It.IsAny<IEnumerable<ITransactionRequest>>(), It.IsAny<TransactionOptions?>(), It.IsAny<CancellationToken>()),
                 Times.Never);
         }
 
@@ -183,6 +186,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             _mockManager.Verify(
                 m => m.ExecuteTransactionAsync(
                     It.Is<IEnumerable<ITransactionRequest>>(r => r.Count() == 1),
+                    It.IsAny<TransactionOptions?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -198,6 +202,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             _mockManager.Verify(
                 m => m.ExecuteTransactionAsync(
                     It.Is<IEnumerable<ITransactionRequest>>(r => r.Count() == 1),
+                    It.IsAny<TransactionOptions?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -213,6 +218,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             _mockManager.Verify(
                 m => m.ExecuteTransactionAsync(
                     It.Is<IEnumerable<ITransactionRequest>>(r => r.Count() == 1),
+                    It.IsAny<TransactionOptions?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -228,6 +234,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             _mockManager.Verify(
                 m => m.ExecuteTransactionAsync(
                     It.Is<IEnumerable<ITransactionRequest>>(r => r.Count() == 1),
+                    It.IsAny<TransactionOptions?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -266,8 +273,51 @@ namespace DynamoDBv2.Transactions.UnitTests
             _mockManager.Verify(
                 m => m.ExecuteTransactionAsync(
                     It.Is<IEnumerable<ITransactionRequest>>(r => !r.Any()),
+                    It.IsAny<TransactionOptions?>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
+        }
+
+        [Fact]
+        public async Task DisposeAsync_WithOptions_PassesOptionsToManager()
+        {
+            var options = new TransactionOptions { ClientRequestToken = "test-token" };
+
+            await using (var transactor = new DynamoDbTransactor(_mockManager.Object))
+            {
+                transactor.Options = options;
+                transactor.CreateOrUpdate(new SomeDynamoDbEntity { Id = "1" });
+            }
+
+            _mockManager.Verify(
+                m => m.ExecuteTransactionAsync(
+                    It.Is<IEnumerable<ITransactionRequest>>(r => r.Count() == 1),
+                    It.Is<TransactionOptions?>(o => o != null && o.ClientRequestToken == "test-token"),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task DisposeAsync_WithoutOptions_PassesNullOptions()
+        {
+            await using (var transactor = new DynamoDbTransactor(_mockManager.Object))
+            {
+                transactor.CreateOrUpdate(new SomeDynamoDbEntity { Id = "1" });
+            }
+
+            _mockManager.Verify(
+                m => m.ExecuteTransactionAsync(
+                    It.IsAny<IEnumerable<ITransactionRequest>>(),
+                    It.Is<TransactionOptions?>(o => o == null),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public void Options_DefaultsToNull()
+        {
+            var transactor = new DynamoDbTransactor(_mockManager.Object);
+            Assert.Null(transactor.Options);
         }
     }
 }
