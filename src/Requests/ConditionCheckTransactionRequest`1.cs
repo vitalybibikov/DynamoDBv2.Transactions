@@ -29,10 +29,9 @@ namespace DynamoDBv2.Transactions.Requests
 
         public override Operation GetOperation()
         {
-            // Ensure the final condition expression does not end with "AND "
-            if (!String.IsNullOrEmpty(ConditionExpression))
+            if (!String.IsNullOrEmpty(ConditionExpression) && ConditionExpression.EndsWith(" AND "))
             {
-                ConditionExpression = ConditionExpression.TrimEnd(' ', 'A', 'N', 'D');
+                ConditionExpression = ConditionExpression[..^5];
             }
             
             var check = new ConditionCheck
@@ -92,7 +91,7 @@ namespace DynamoDBv2.Transactions.Requests
 
             ExpressionAttributeNames[$"#{propertyName}"] = propertyName;
             ExpressionAttributeValues[$":{propertyName}Value"] = attributeValue!;
-            ConditionExpression += $"{ConditionExpression} #{propertyName} {comparisonOperator} :{propertyName}Value AND ";
+            ConditionExpression += $"#{propertyName} {comparisonOperator} :{propertyName}Value AND ";
         }
 
         private string GetPropertyName<TV, TValue>(Expression<Func<TV, TValue>> expression)
