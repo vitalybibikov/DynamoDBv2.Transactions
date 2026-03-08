@@ -8,5 +8,10 @@ namespace DynamoDBv2.Transactions.Contracts
         Task<TransactWriteItemsResponse?> ExecuteTransactionAsync(
             IEnumerable<ITransactionRequest> requests,
             CancellationToken token = default);
+
+        Task<TransactWriteItemsResponse?> ExecuteTransactionAsync(
+            IEnumerable<ITransactionRequest> requests,
+            TransactionOptions? options,
+            CancellationToken token = default);
     }
 }

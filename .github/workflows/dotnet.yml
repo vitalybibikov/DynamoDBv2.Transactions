@@ -5,7 +5,7 @@ permissions:
     pull-requests: write # required if create-pr-comment: true
     checks: write       # required if create-status-check: true
     packages: write
-    
+
 on:
   push:
     branches: [ "master", "development" ]
@@ -14,19 +14,19 @@ on:
   release:
     types:
       - published
-  
-      
+
+
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   DOTNET_NOLOGO: true
   NuGetDirectory: ${{github.workspace}}/nupkgs
-  
+
 jobs:
   integration-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Docker Compose
         run: |
@@ -37,44 +37,41 @@ jobs:
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-      - name: Run tests
+      - name: Run integration tests
         run: docker compose up --exit-code-from tests tests localstack
 
-      - name: Run tests
+      - name: Run unit tests
         run: docker compose up --exit-code-from unittests unittests
-        
+
       - name: Upload TRX test results
         uses: actions/upload-artifact@v4
-        if: always()  # This ensures it runs even if the previous steps fail
+        if: always()
         with:
           name: trx-test-results
           path: ./test-results/*.trx
 
-      # Debug: List files in the test-results folder before generating the coverage report
       - name: List test results files
         run: ls -l ./test-results
 
       - name: Merge Coverage Reports
         run: reportgenerator "-reports:${{ github.workspace }}/test-results/coverage_*.cobertura.xml" "-targetdir:${{ github.workspace }}/coverage-results/" "-reporttypes:Cobertura"
 
-      # Debug: List files in the coverage-results folder after merging reports
       - name: List coverage results files
         run: ls -l ./coverage-results
 
-      # Debug: Display the contents of the merged coverage report
       - name: Debug Coverage Report
         run: cat ./coverage-results/*.xml
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
-        if: always()  # This ensures it runs even if the previous steps fail
+        if: always()
         with:
           name: coverage-results
           path: ./coverage-results/*.xml
 
       - name: Upload coverage reports to Codecov
         if: github.actor != 'dependabot[bot]'
-        uses: codecov/codecov-action@v5.4.0
+        uses: codecov/codecov-action@v5
         with:
           files: './coverage-results/*.xml'
           fail_ci_if_error: true
@@ -82,17 +79,16 @@ jobs:
 
       - name: Clean up
         run: docker compose down
-        
+
       - name: Parse Trx files
-        uses: NasAmin/trx-parser@v0.5.0
+        uses: NasAmin/trx-parser@v0.6.0
         id: trx-parser
         with:
-          TRX_PATH: ${{ github.workspace }}/test-results #This should be the path to your TRX files
-          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
+          TRX_PATH: ${{ github.workspace }}/test-results
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Process trx reports
         id: process-trx
-        # You may also reference just the major or major.minor version
         uses: im-open/process-dotnet-test-results@v3.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -104,17 +100,15 @@ jobs:
           timezone: 'america/denver'
           comment-identifier: 'bff-tests'
 
-      # Optional
       - name: Annotate Test Outcome
         if: steps.process-trx.outputs.test-results-truncated == 'true'
         run: cat ${{ steps.process-trx.outputs.test-results-file-path }} > $GITHUB_STEP_SUMMARY
 
-      # Optional
       - name: Upload Outcome as artifact if character limit reached
         if: steps.process-trx.outputs.test-results-truncated == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: Cypress-Results
+          name: Test-Results
           path: |
             ${{ steps.process-trx.outputs.test-results-file-path }}
           retention-days: 90
@@ -125,51 +119,48 @@ jobs:
     if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/development') && success() || github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'prereleased')
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-  
+        uses: actions/checkout@v4
+
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Build and Pack
         run: |
             # Extract version directly from csproj as-is
             AWS_SDK_VERSION=$(grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' src/DynamoDBv2.Transactions.csproj)
             echo "Extracted AWSSDK.DynamoDBv2 version: $AWS_SDK_VERSION"
-        
+
             # Validate against NuGet version rules (max 4 segments)
             SEGMENT_COUNT=$(awk -F. '{print NF}' <<< "$AWS_SDK_VERSION")
             if [ "$SEGMENT_COUNT" -gt 4 ]; then
               echo "❌ Error: AWS SDK version has more than 4 segments: $AWS_SDK_VERSION"
               exit 1
             fi
-        
+
             FINAL_VERSION="$AWS_SDK_VERSION"
             echo "🎯 FINAL NuGet VERSION: $FINAL_VERSION"
-        
+
             dotnet build src/DynamoDBv2.Transactions.csproj --configuration Release
             dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release --output ${{ env.NuGetDirectory }} /p:Version=$FINAL_VERSION
-        
-      
-        
+
       - name: Create NuGet Artifact
-        uses: actions/upload-artifact@v4.6.1
+        uses: actions/upload-artifact@v4
         with:
           name: nuget
           if-no-files-found: error
           retention-days: 7
           path: ${{ env.NuGetDirectory }}/*.nupkg
-          
+
   validate_nuget:
     runs-on: ubuntu-latest
     needs: [ create_nuget, integration-tests ]
     steps:
-      # Install the .NET SDK indicated in the global.json file
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
 
-    - uses: actions/download-artifact@v4.1.7
+    - uses: actions/download-artifact@v4
       with:
           name: nuget
           path: ${{ env.NuGetDirectory }}
@@ -177,22 +168,17 @@ jobs:
       run: dotnet tool update Meziantou.Framework.NuGetPackageValidation.Tool --global
     - name: Validate package
       run: meziantou.validate-nuget-package $(ls "${{ env.NuGetDirectory }}"/*.nupkg) --excluded-rules Symbols
-      
+
   deploy:
-    # Publish only when creating a GitHub Release
-    # https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository
-    # You can update this logic if you want to manage releases differently
      if: github.event_name == 'release'
      runs-on: ubuntu-latest
      needs: [ validate_nuget, integration-tests ]
      steps:
-      # Download the NuGet package created in the previous job
-      - uses: actions/download-artifact@v4.1.7
+      - uses: actions/download-artifact@v4
         with:
           name: nuget
           path: ${{ env.NuGetDirectory }}
 
-      # Install the .NET SDK indicated in the global.json file
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v4
 

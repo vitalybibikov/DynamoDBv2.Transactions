@@ -1,4 +1,5 @@
-﻿using System.Collections;
+using System.Collections;
+using System.Collections.Concurrent;
 using System.Reflection;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DataModel;
@@ -8,6 +9,11 @@ namespace DynamoDBv2.Transactions
 {
     public static class DynamoDbMapper
     {
+        private static readonly ConcurrentDictionary<(Type, string), string> PropertyNameCache = new();
+        private static readonly ConcurrentDictionary<Type, string> HashKeyCache = new();
+        private static readonly ConcurrentDictionary<Type, PropertyInfo[]> PropertyCache = new();
+        private static readonly ConcurrentDictionary<Type, PropertyInfo?> VersionPropertyCache = new();
+
         public static AttributeValue? GetAttributeValue(object value)
         {
             var attribute = ConvertToAttributeValueV2(value);
@@ -16,52 +22,61 @@ namespace DynamoDBv2.Transactions
 
         public static string GetPropertyAttributedName(Type type, string propertyName)
         {
-            var property = type.GetProperty(propertyName);
-
-            if (property == null)
+            return PropertyNameCache.GetOrAdd((type, propertyName), static key =>
             {
-                throw new ArgumentException($"Property {propertyName} not found on type {type.Name}");
-            }
+                var (t, pName) = key;
+                var property = t.GetProperty(pName);
 
-            var attributeName = property.Name;
-
-            var hashKeyAttr = property.GetCustomAttribute<DynamoDBHashKeyAttribute>();
-            if (hashKeyAttr != null && !string.IsNullOrWhiteSpace(hashKeyAttr.AttributeName))
-            {
-                attributeName = hashKeyAttr.AttributeName;
-            }
-            else
-            {
-                var rangeKeyAttr = property.GetCustomAttribute<DynamoDBRangeKeyAttribute>();
-                if (rangeKeyAttr != null && !string.IsNullOrWhiteSpace(rangeKeyAttr.AttributeName))
+                if (property == null)
                 {
-                    attributeName = rangeKeyAttr.AttributeName;
+                    throw new ArgumentException($"Property {pName} not found on type {t.Name}");
+                }
+
+                var attributeName = property.Name;
+
+                var hashKeyAttr = property.GetCustomAttribute<DynamoDBHashKeyAttribute>();
+                if (hashKeyAttr != null && !string.IsNullOrWhiteSpace(hashKeyAttr.AttributeName))
+                {
+                    attributeName = hashKeyAttr.AttributeName;
                 }
                 else
                 {
-                    var propertyAttr = property.GetCustomAttribute<DynamoDBPropertyAttribute>();
-                    if (propertyAttr != null && !string.IsNullOrWhiteSpace(propertyAttr.AttributeName))
+                    var rangeKeyAttr = property.GetCustomAttribute<DynamoDBRangeKeyAttribute>();
+                    if (rangeKeyAttr != null && !string.IsNullOrWhiteSpace(rangeKeyAttr.AttributeName))
                     {
-                        attributeName = propertyAttr.AttributeName;
+                        attributeName = rangeKeyAttr.AttributeName;
+                    }
+                    else
+                    {
+                        var propertyAttr = property.GetCustomAttribute<DynamoDBPropertyAttribute>();
+                        if (propertyAttr != null && !string.IsNullOrWhiteSpace(propertyAttr.AttributeName))
+                        {
+                            attributeName = propertyAttr.AttributeName;
+                        }
                     }
                 }
-            }
 
-            return attributeName;
+                return attributeName;
+            });
         }
 
         public static string GetHashKeyAttributeName(Type type)
         {
-            foreach (var property in type.GetProperties())
+            return HashKeyCache.GetOrAdd(type, static t =>
             {
-                var propertyVal = property.GetCustomAttribute<DynamoDBHashKeyAttribute>();
-                if (propertyVal != null)
+                foreach (var property in GetCachedProperties(t))
                 {
-                    return propertyVal.AttributeName;
+                    var propertyVal = property.GetCustomAttribute<DynamoDBHashKeyAttribute>();
+                    if (propertyVal != null)
+                    {
+                        return string.IsNullOrWhiteSpace(propertyVal.AttributeName)
+                            ? property.Name
+                            : propertyVal.AttributeName;
+                    }
                 }
-            }
 
-            throw new ArgumentException("Failed to find hash key attribute on type " + type.FullName);
+                throw new ArgumentException("Failed to find hash key attribute on type " + t.FullName);
+            });
         }
 
         /// <summary>
@@ -72,10 +87,7 @@ namespace DynamoDBv2.Transactions
         /// <returns>Attributes dictionary to return.</returns>
         public static Dictionary<string, AttributeValue> MapToAttribute(object? obj, DynamoDBEntryConversion? conversion = null)
         {
-            if (conversion == null)
-            {
-                conversion = DynamoDBEntryConversion.V2;
-            }
+            conversion ??= DynamoDBEntryConversion.V2;
 
             var attributeMap = new Dictionary<string, AttributeValue>();
 
@@ -85,21 +97,20 @@ namespace DynamoDBv2.Transactions
             }
 
             var type = obj.GetType();
-            foreach (var property in type.GetProperties())
+            var properties = GetCachedProperties(type);
+
+            foreach (var property in properties)
             {
-                // Skip properties that cannot be read.
                 if (!property.CanRead)
                 {
                     continue;
                 }
 
-                // Default attribute name is the property name.
                 var attributeName = GetPropertyAttributedName(type, property.Name);
                 var value = property.GetValue(obj, null);
 
                 if (property.GetCustomAttribute<DynamoDBVersionAttribute>() != null)
                 {
-                    // For version attribute, ensure it is a numeric type; otherwise, ignore.
                     if (value != null && (value is int || value is long || value is decimal))
                     {
                         attributeMap[attributeName] = new AttributeValue { N = value.ToString() };
@@ -139,13 +150,18 @@ namespace DynamoDBv2.Transactions
 
             var type = item.GetType();
 
-            var versionProperty = type
-                .GetProperties()
-                .FirstOrDefault(x => x.GetCustomAttribute<DynamoDBVersionAttribute>() != null);
+            var versionProperty = VersionPropertyCache.GetOrAdd(type, static t =>
+                GetCachedProperties(t)
+                    .FirstOrDefault(x => x.GetCustomAttribute<DynamoDBVersionAttribute>() != null));
 
             var value = versionProperty?.GetValue(item, null);
 
             return (versionProperty?.Name, value);
+        }
+
+        private static PropertyInfo[] GetCachedProperties(Type type)
+        {
+            return PropertyCache.GetOrAdd(type, static t => t.GetProperties());
         }
 
         private static AttributeValue ConvertToAttributeValueV2(object? value)
@@ -178,7 +194,7 @@ namespace DynamoDBv2.Transactions
                 case Guid guid:
                     return new AttributeValue { S = guid.ToString() };
                 case IDictionary dictionary:
-                    return new AttributeValue { M = MapDictionaryToAttributeValue(dictionary) };
+                    return new AttributeValue { M = MapDictionaryToAttributeValue(dictionary, ConvertToAttributeValueV2) };
                 case IEnumerable enumerable:
                     {
                         var type = value.GetType();
@@ -238,7 +254,6 @@ namespace DynamoDBv2.Transactions
                         }
                         else
                         {
-                            // For List<T> and arrays, always map to L
                             return new AttributeValue
                             {
                                 L = enumerable.Cast<object>()
@@ -296,7 +311,7 @@ namespace DynamoDBv2.Transactions
                 case Guid guid:
                     return new AttributeValue { S = guid.ToString() };
                 case IDictionary dictionary:
-                    return new AttributeValue { M = MapDictionaryToAttributeValue(dictionary) };
+                    return new AttributeValue { M = MapDictionaryToAttributeValue(dictionary, ConvertToAttributeValueV1) };
                 case IEnumerable enumerable:
                     var type = value.GetType();
                     var elementType = type.IsArray ? type.GetElementType() : type.GetGenericArguments().FirstOrDefault();
@@ -305,7 +320,6 @@ namespace DynamoDBv2.Transactions
                     {
                         if (elementType == typeof(bool))
                         {
-                            // Handle bool[] as NS with 0/1
                             return new AttributeValue
                             {
                                 NS = enumerable.Cast<bool>()
@@ -322,7 +336,6 @@ namespace DynamoDBv2.Transactions
                                                .ToList()
                             };
                         }
-                        //if array contains nullables, then dynamo foces to use V2.
                         else if (IsNumericNullableType(elementType))
                         {
                             return new AttributeValue
@@ -407,12 +420,12 @@ namespace DynamoDBv2.Transactions
                    type == typeof(decimal?);
         }
 
-        private static Dictionary<string, AttributeValue> MapDictionaryToAttributeValue(IDictionary dictionary)
+        private static Dictionary<string, AttributeValue> MapDictionaryToAttributeValue(IDictionary dictionary, Func<object?, AttributeValue> converter)
         {
-            var attributeValues = new Dictionary<string, AttributeValue>();
+            var attributeValues = new Dictionary<string, AttributeValue>(dictionary.Count);
             foreach (DictionaryEntry entry in dictionary)
             {
-                attributeValues[entry.Key.ToString()!] = ConvertToAttributeValueV2(entry.Value!);
+                attributeValues[entry.Key.ToString()!] = converter(entry.Value!);
             }
             return attributeValues;
         }

@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine3.18 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
 
 COPY . .
 WORKDIR "/app/test-results"
