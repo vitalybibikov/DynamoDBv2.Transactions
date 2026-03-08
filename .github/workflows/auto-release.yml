@@ -1,0 +1,70 @@
+name: Auto-Release on AWS SDK Update
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/DynamoDBv2.Transactions.csproj'
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect AWS SDK version change
+        id: version-check
+        run: |
+          # Get current version from csproj
+          CURRENT_VERSION=$(grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' src/DynamoDBv2.Transactions.csproj)
+          echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+
+          # Get previous version from the commit before
+          PREVIOUS_VERSION=$(git show HEAD~1:src/DynamoDBv2.Transactions.csproj 2>/dev/null | grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' || echo "")
+          echo "previous_version=$PREVIOUS_VERSION" >> "$GITHUB_OUTPUT"
+
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ] && [ -n "$PREVIOUS_VERSION" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "🔄 AWS SDK version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "ℹ️ No AWS SDK version change detected"
+          fi
+
+      - name: Sync library version with AWS SDK version
+        if: steps.version-check.outputs.changed == 'true'
+        run: |
+          VERSION="${{ steps.version-check.outputs.current_version }}"
+          echo "📦 Setting library version to $VERSION"
+
+          # Update Version and AssemblyVersion in the main csproj
+          sed -i "s|<Version>[^<]*</Version>|<Version>$VERSION</Version>|g" src/DynamoDBv2.Transactions.csproj
+          sed -i "s|<AssemblyVersion>[^<]*</AssemblyVersion>|<AssemblyVersion>$VERSION</AssemblyVersion>|g" src/DynamoDBv2.Transactions.csproj
+
+          # Update AWSSDK.DynamoDBv2 references in test projects
+          for csproj in test/*/DynamoDBv2.Transactions.*.csproj; do
+            if [ -f "$csproj" ]; then
+              sed -i "s|<PackageReference Include=\"AWSSDK.DynamoDBv2\" Version=\"[^\"]*\"|<PackageReference Include=\"AWSSDK.DynamoDBv2\" Version=\"$VERSION\"|g" "$csproj"
+              echo "  Updated $csproj"
+            fi
+          done
+
+      - name: Create GitHub Release
+        if: steps.version-check.outputs.changed == 'true'
+        run: |
+          VERSION="${{ steps.version-check.outputs.current_version }}"
+          PREV="${{ steps.version-check.outputs.previous_version }}"
+          TAG="v$VERSION"
+
+          gh release create "$TAG" \
+            --title "v$VERSION" \
+            --notes "Automated release — AWSSDK.DynamoDBv2 updated from $PREV to $VERSION" \
+            --target master
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
