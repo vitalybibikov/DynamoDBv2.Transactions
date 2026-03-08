@@ -261,8 +261,8 @@ When creating PRs, please review the following guidelines:
 
 ## License
 
-Copyright &copy; 2025, Vitali Bibikov. Code released under the [MIT license](LICENSE).
+Copyright &copy; 2026, Vitali Bibikov. Code released under the [MIT license](LICENSE).
 
 ## Contact
 
-Your Name - [bibikovvitaly@gmail.com]
+Vitali Bibikov - [bibikovvitaly@gmail.com]
