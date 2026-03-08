@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-using Amazon.DynamoDBv2.DataModel;
-using Amazon.DynamoDBv2.Model;
+﻿using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Requests.Contract;
 using DynamoDBv2.Transactions.Requests.Properties;
 
@@ -20,7 +18,7 @@ namespace DynamoDBv2.Transactions.Requests.Abstract
             {
                 string nextValue = 0.ToString();
 
-                if (convertedItem[propertyName].NULL)
+                if (convertedItem[propertyName].NULL == true)
                 {
                     convertedItem[propertyName] = new AttributeValue { N = 0.ToString() };
                 }
@@ -58,22 +56,9 @@ namespace DynamoDBv2.Transactions.Requests.Abstract
             return key;
         }
 
-        private string SetTableName(Type item)
+        private static string SetTableName(Type item)
         {
-            string? dynamoDbTable = null;
-            var tableAttribute = item.GetCustomAttribute<DynamoDBTableAttribute>();
-
-            if (tableAttribute != null)
-            {
-                dynamoDbTable = tableAttribute.TableName;
-            }
-
-            if (string.IsNullOrEmpty(dynamoDbTable))
-            {
-                dynamoDbTable = item.Name;
-            }
-
-            return dynamoDbTable;
+            return DynamoDbMapper.GetTableName(item);
         }
     }
 }

@@ -16,11 +16,14 @@
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageReference Include="BenchmarkDotNet.Annotations" Version="0.15.8" />
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.407" />
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.14.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DynamoDBv2.Transactions.csproj" />
+    <ProjectReference Include="..\..\src\DynamoDBv2.Transactions.SourceGenerator\DynamoDBv2.Transactions.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>
