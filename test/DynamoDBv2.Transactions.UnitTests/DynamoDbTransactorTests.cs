@@ -102,7 +102,7 @@ public class DynamoDbTransactorTests
         await transactor.Object.DisposeAsync();
 
         // Assert
-        _mockManager.Verify(m => m.ExecuteTransactionAsync(It.IsAny<List<ITransactionRequest>>(), CancellationToken.None), Times.Never);
+        _mockManager.Verify(m => m.ExecuteTransactionAsync(It.IsAny<List<ITransactionRequest>>(), It.IsAny<TransactionOptions?>(), CancellationToken.None), Times.Never);
     }
 
     [Fact]
@@ -115,6 +115,6 @@ public class DynamoDbTransactorTests
         await transactor.Object.DisposeAsync();
 
         // Assert
-        _mockManager.Verify(m => m.ExecuteTransactionAsync(It.IsAny<List<ITransactionRequest>>(), CancellationToken.None), Times.Once);
+        _mockManager.Verify(m => m.ExecuteTransactionAsync(It.IsAny<List<ITransactionRequest>>(), It.IsAny<TransactionOptions?>(), CancellationToken.None), Times.Once);
     }
 }

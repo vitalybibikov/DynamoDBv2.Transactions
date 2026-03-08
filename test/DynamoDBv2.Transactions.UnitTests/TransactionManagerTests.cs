@@ -164,5 +164,133 @@ namespace DynamoDBv2.Transactions.UnitTests
 
             Assert.Same(expectedResponse, result);
         }
+
+        [Fact]
+        public async Task ExecuteTransaction_Over100Items_ThrowsArgumentException()
+        {
+            var requests = Enumerable.Range(0, 101)
+                .Select(i => new DeleteTransactionRequest<SomeDynamoDbEntity>(i.ToString()))
+                .Cast<ITransactionRequest>()
+                .ToList();
+
+            var ex = await Assert.ThrowsAsync<ArgumentException>(
+                () => _manager.ExecuteTransactionAsync(requests));
+
+            Assert.Contains("100", ex.Message);
+            Assert.Contains("101", ex.Message);
+        }
+
+        [Fact]
+        public async Task ExecuteTransaction_Exactly100Items_Succeeds()
+        {
+            var requests = Enumerable.Range(0, 100)
+                .Select(i => new DeleteTransactionRequest<SomeDynamoDbEntity>(i.ToString()))
+                .Cast<ITransactionRequest>()
+                .ToList();
+
+            await _manager.ExecuteTransactionAsync(requests);
+
+            _mockClient.Verify(c => c.TransactWriteItemsAsync(
+                It.Is<TransactWriteItemsRequest>(r => r.TransactItems.Count == 100),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task ExecuteTransaction_WithClientRequestToken_SetsToken()
+        {
+            var options = new TransactionOptions { ClientRequestToken = "idempotency-token-123" };
+
+            await _manager.ExecuteTransactionAsync(
+                new[] { new DeleteTransactionRequest<SomeDynamoDbEntity>("1") },
+                options);
+
+            _mockClient.Verify(c => c.TransactWriteItemsAsync(
+                It.Is<TransactWriteItemsRequest>(r =>
+                    r.ClientRequestToken == "idempotency-token-123"),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task ExecuteTransaction_WithReturnConsumedCapacity_SetsCapacity()
+        {
+            var options = new TransactionOptions
+            {
+                ReturnConsumedCapacity = ReturnConsumedCapacity.TOTAL
+            };
+
+            await _manager.ExecuteTransactionAsync(
+                new[] { new DeleteTransactionRequest<SomeDynamoDbEntity>("1") },
+                options);
+
+            _mockClient.Verify(c => c.TransactWriteItemsAsync(
+                It.Is<TransactWriteItemsRequest>(r =>
+                    r.ReturnConsumedCapacity == ReturnConsumedCapacity.TOTAL),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task ExecuteTransaction_WithReturnItemCollectionMetrics_SetsMetrics()
+        {
+            var options = new TransactionOptions
+            {
+                ReturnItemCollectionMetrics = ReturnItemCollectionMetrics.SIZE
+            };
+
+            await _manager.ExecuteTransactionAsync(
+                new[] { new DeleteTransactionRequest<SomeDynamoDbEntity>("1") },
+                options);
+
+            _mockClient.Verify(c => c.TransactWriteItemsAsync(
+                It.Is<TransactWriteItemsRequest>(r =>
+                    r.ReturnItemCollectionMetrics == ReturnItemCollectionMetrics.SIZE),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task ExecuteTransaction_WithAllOptions_SetsAll()
+        {
+            var options = new TransactionOptions
+            {
+                ClientRequestToken = "token-abc",
+                ReturnConsumedCapacity = ReturnConsumedCapacity.INDEXES,
+                ReturnItemCollectionMetrics = ReturnItemCollectionMetrics.SIZE
+            };
+
+            await _manager.ExecuteTransactionAsync(
+                new[] { new DeleteTransactionRequest<SomeDynamoDbEntity>("1") },
+                options);
+
+            _mockClient.Verify(c => c.TransactWriteItemsAsync(
+                It.Is<TransactWriteItemsRequest>(r =>
+                    r.ClientRequestToken == "token-abc" &&
+                    r.ReturnConsumedCapacity == ReturnConsumedCapacity.INDEXES &&
+                    r.ReturnItemCollectionMetrics == ReturnItemCollectionMetrics.SIZE),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task ExecuteTransaction_NullOptions_DoesNotSetAnything()
+        {
+            await _manager.ExecuteTransactionAsync(
+                new[] { new DeleteTransactionRequest<SomeDynamoDbEntity>("1") },
+                options: null);
+
+            _mockClient.Verify(c => c.TransactWriteItemsAsync(
+                It.Is<TransactWriteItemsRequest>(r =>
+                    r.ClientRequestToken == null),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task ExecuteTransaction_SimpleOverload_DelegatesToOptionsOverload()
+        {
+            await _manager.ExecuteTransactionAsync(
+                new[] { new DeleteTransactionRequest<SomeDynamoDbEntity>("1") });
+
+            _mockClient.Verify(c => c.TransactWriteItemsAsync(
+                It.Is<TransactWriteItemsRequest>(r =>
+                    r.ClientRequestToken == null),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
     }
 }

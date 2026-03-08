@@ -17,6 +17,11 @@ public class DynamoDbTransactor : IDynamoDbTransactor
 
     public bool ErrorDuringExecution { get; private set; } = false;
 
+    /// <summary>
+    /// Gets or sets the transaction options (idempotency token, consumed capacity, etc.).
+    /// </summary>
+    public TransactionOptions? Options { get; set; }
+
     private List<ITransactionRequest> Requests { get; } = [];
 
     /// <summary>
@@ -367,7 +372,7 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     {
         if (!ErrorDuringExecution)
         {
-            await _manager.ExecuteTransactionAsync(Requests);
+            await _manager.ExecuteTransactionAsync(Requests, Options, default);
         }
     }
 }
