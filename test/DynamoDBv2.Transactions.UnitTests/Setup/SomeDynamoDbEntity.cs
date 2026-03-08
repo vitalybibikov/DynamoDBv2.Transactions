@@ -4,7 +4,7 @@ using Amazon.DynamoDBv2.DataModel;
 namespace DynamoDBv2.Transactions.UnitTests.Setup
 {
     [DynamoDBTable("SomeDynamoDbEntity")]
-    public class SomeDynamoDbEntity : ITransactional
+    public partial class SomeDynamoDbEntity : ITransactional
     {
         [DynamoDBHashKey(AttributeName = "MyId")]
         public string Id { get; set; }

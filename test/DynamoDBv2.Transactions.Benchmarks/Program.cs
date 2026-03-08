@@ -1,4 +1,4 @@
-﻿using BenchmarkDotNet.Running;
+using BenchmarkDotNet.Running;
 
 namespace DynamoDBv2.Transactions.Benchmarks
 {
@@ -6,7 +6,7 @@ namespace DynamoDBv2.Transactions.Benchmarks
     {
         public static void Main(string[] args)
         {
-           BenchmarkRunner.Run<Benchmark>();
+            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
         }
     }
 }

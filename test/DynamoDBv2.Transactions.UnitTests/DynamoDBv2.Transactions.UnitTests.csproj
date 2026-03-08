@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.407" />
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.14.1" />
     <PackageReference Include="coverlet.msbuild" Version="8.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -27,5 +27,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DynamoDBv2.Transactions.csproj" />
+    <ProjectReference Include="..\..\src\DynamoDBv2.Transactions.SourceGenerator\DynamoDBv2.Transactions.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

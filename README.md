@@ -3,31 +3,62 @@
 DynamoDBv2.Transactions is a .NET library that provides a robust wrapper around the Amazon DynamoDB low-level API, enabling easy and efficient management of transactions for batch operations. This library is designed to simplify complex transactional logic and ensure data consistency across your DynamoDB operations.
 It skips additional implicit for some cases DescribeTable call, thus making DynamoDB attributes mandatory - alternatively too using the attributes you can provide KeyName/KeyValue as a separate parameter to a method.
 
-Unit Tests: ![Badge](https://camo.githubusercontent.com/63990e7e4752bde704f569b9db6cce24d94eeb19d12898d1f99579928858f55e/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f3132342f3132342d5041535345442d627269676874677265656e2e737667) 
+Unit Tests: 259 Passed
 
-Integration Tests via localstack: ![Badge](https://camo.githubusercontent.com/6a167e3368c36788b026d8703bcd29d2f0c46199a6cfd14e9b94c7765e036bd3/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f33332f33332d5041535345442d627269676874677265656e2e737667)
+Integration Tests via localstack: 33 Passed
 
 [![.github/workflows/dotnet.yml](https://github.com/vitalybibikov/DynamoDBv2.Transactions/actions/workflows/dotnet.yml/badge.svg)](https://github.com/vitalybibikov/DynamoDBv2.Transactions/actions/workflows/dotnet.yml)
 
 
 [![codecov](https://codecov.io/gh/vitalybibikov/DynamoDBv2.Transactions/graph/badge.svg?token=CYF75Y00KH)](https://codecov.io/gh/vitalybibikov/DynamoDBv2.Transactions)
 
-• Source Link: ✅ Valid with Symbol Server
-• Deterministic (dll/exe): ✅ Valid
-• Compiler Flags: ✅ Valid
+- Source Link: Valid with Symbol Server
+- Deterministic (dll/exe): Valid
+- Compiler Flags: Valid
 
 ## Features
 
-- **Transactional Operations**: Supports `CreateOrUpdate`, `Delete`, and `Update`and `ConditionCheck` operations within transactions.
-- **Error Handling**: Gracefully handles transaction failures and rollbacks.
+- **AWS SDK v4 Support**: Built for AWSSDK.DynamoDBv2 v4.x with full compatibility.
+- **Source Generator**: Compile-time DynamoDB attribute mapping — zero reflection at runtime for `partial` entity classes.
+- **Transactional Operations**: Supports `CreateOrUpdate`, `Delete`, `Update`, `Patch`, and `ConditionCheck` operations within transactions.
+- **100-Item Limit Validation**: Enforces DynamoDB's 100 transact-item limit before sending the request.
+- **TransactionOptions**: Configure `ClientRequestToken`, `ReturnConsumedCapacity`, and `ReturnItemCollectionMetrics`.
 - **Versioning Support**: Automatic handling of version increments for transactional integrity.
+- **Error Handling**: Gracefully handles transaction failures and rollbacks.
 - **Easy Integration**: Seamlessly integrates with existing DynamoDB setups.
 - **Asynchronous API**: Fully asynchronous API for optimal performance.
+- **Multi-targeting**: Supports both .NET 8.0 and .NET 9.0.
 
-## Plans
-- Add Source Generator in order to validate abscence of [DynamoDBHashKey("UserId")] attribute
-- Write more tests on SortKey
-- Write more benchmarks.
+## Source Generator (Zero-Reflection Mapping)
+
+For maximum performance, make your DynamoDB entity classes `partial`. The included source generator will automatically generate compile-time attribute mappings, eliminating all reflection overhead at runtime.
+
+```csharp
+// Just add 'partial' — the source generator does the rest
+[DynamoDBTable("MyTable")]
+public partial class MyEntity : ITransactional
+{
+    [DynamoDBHashKey("PK")]
+    public string Id { get; set; }
+
+    [DynamoDBProperty("Name")]
+    public string Name { get; set; }
+
+    [DynamoDBVersion]
+    public long? Version { get; set; }
+}
+```
+
+The generator automatically discovers all `partial` classes with `[DynamoDBHashKey]` properties and registers them via `[ModuleInitializer]`. No additional configuration needed.
+
+For explicit opt-in, you can also use `[DynamoDbGenerateMapping]`:
+
+```csharp
+[DynamoDbGenerateMapping]
+public partial class MyEntity { ... }
+```
+
+Non-partial classes continue to work via cached reflection (the existing behavior).
 
 ## Installation
 
@@ -39,7 +70,7 @@ Install-Package DynamoDBv2.Transactions
 
 ## Quick Start
 
-To get started with DynamoDBv2.Transactions, you'll need to set up an instance of `TransactionalWriter` using an `ITransactionManager`, which is responsible for executing the transactions against your DynamoDB instance.
+To get started with DynamoDBv2.Transactions, you'll need to set up an instance of `DynamoDbTransactor` using an `IAmazonDynamoDB` client.
 
 ### Prerequisites
 
@@ -48,17 +79,13 @@ Ensure you have the AWS SDK for .NET configured in your project, with access to 
 ### Example Usage
 !!! It skips additional implicit for some cases DescribeTable call, thus making DynamoDB attribute [DynamoDBHashKey("YourId")] mandatory !!!
 Which makes it faster in comparison with the traditional wrapper.
-Here's a quick example to show you how to use the `TransactionalWriter` to perform a transaction:
+Here's a quick example to show you how to use the `DynamoDbTransactor` to perform a transaction:
 
 ```csharp
 using DynamoDBv2.Transactions;
 
 // Initialize the DynamoDB client
 var client = new AmazonDynamoDBClient();
-
-// Setup transaction manager and writer
-var transactionManager = new TransactionManager(client);
-var writer = new TransactionalWriter(transactionManager);
 
 var userId = Guid.NewGuid().ToString();
 var testItem = new TestTable
@@ -70,9 +97,9 @@ var testItem = new TestTable
 };
 
 // Perform transaction
-await using (writer)
+await using (var transactor = new DynamoDbTransactor(client))
 {
-    writer.CreateOrUpdate(testItem);
+    transactor.CreateOrUpdate(testItem);
 }
 
 // Load and verify
@@ -172,19 +199,56 @@ await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
 
 ```
 
+### Using TransactionOptions
 
-## BenchmarkDotNet results
+```csharp
+await using (var transactor = new DynamoDbTransactor(client))
+{
+    transactor.Options = new TransactionOptions
+    {
+        ClientRequestToken = "idempotency-token-123",
+        ReturnConsumedCapacity = ReturnConsumedCapacity.TOTAL
+    };
 
-// * Summary *
+    transactor.CreateOrUpdate(item1);
+    transactor.CreateOrUpdate(item2);
+};
+```
 
-BenchmarkDotNet v0.13.12, Windows 11 (10.0.22631.3527/23H2/2023Update/SunValley3)
-AMD Ryzen 9 6900HS with Radeon Graphics, 1 CPU, 16 logical and 8 physical cores
-.NET SDK 8.0.200
-  [Host]    : .NET 8.0.2 (8.0.224.6711), X64 RyuJIT AVX2
-  OutOfProc : .NET 8.0.2 (8.0.224.6711), X64 RyuJIT AVX2
+## Benchmark Results
 
-Job=OutOfProc  IterationCount=15  LaunchCount=3
-WarmupCount=10
+### Mapper Performance (Source-Generated)
+
+Isolated mapping operations — no DynamoDB I/O. Entity with 15 properties including all common types.
+
+```
+BenchmarkDotNet v0.15.8, Linux Ubuntu 25.10
+.NET SDK 9.0.311
+  [Host] : .NET 9.0.13, X64 RyuJIT x86-64-v3
+
+Runtime=.NET 9.0  IterationCount=20  LaunchCount=3  WarmupCount=5
+```
+
+| Method                          | Mean        | Error      | StdDev     | Gen0   | Allocated |
+|-------------------------------- |------------:|-----------:|-----------:|-------:|----------:|
+| MapToAttribute (source-gen)     | 3,656.56 ns | 343.541 ns | 739.509 ns | 0.3853 |    3232 B |
+| GetPropertyAttributedName       |    17.46 ns |   0.567 ns |   1.244 ns |      - |       0 B |
+| GetHashKeyAttributeName         |    14.38 ns |   1.083 ns |   2.332 ns |      - |       0 B |
+| GetVersion                      |   149.10 ns |  12.838 ns |  28.714 ns | 0.0067 |      56 B |
+| GetTableName                    |    17.60 ns |   1.764 ns |   3.872 ns |      - |       0 B |
+
+Key lookups (`GetPropertyAttributedName`, `GetHashKeyAttributeName`, `GetTableName`) are **zero-allocation** and complete in ~15-18ns via compile-time switch expressions.
+
+### End-to-End Transaction Performance
+
+Full transactional writes against DynamoDB (includes network I/O via localstack).
+
+```
+BenchmarkDotNet v0.13.12, Windows 11
+AMD Ryzen 9 6900HS, .NET 8.0.2
+
+Job=OutOfProc  IterationCount=15  LaunchCount=3  WarmupCount=10
+```
 
 | Method                            | Mean     | Error    | StdDev   | Allocated |
 |---------------------------------- |---------:|---------:|---------:|----------:|
@@ -193,28 +257,11 @@ WarmupCount=10
 | DynamoDbTransactionsWrapper3Items | 13.37 ms | 0.066 ms | 0.123 ms | 114.74 KB |
 | OriginalWrapper3Items             | 46.44 ms | 0.444 ms | 0.834 ms | 251.01 KB |
 
-// * Hints *
-Outliers
-  Benchmark.DynamoDbTransactionsWrapper3Items: OutOfProc -> 3 outliers were removed (13.64 ms..14.81 ms)
-  Benchmark.OriginalWrapper3Items: OutOfProc             -> 3 outliers were removed (48.78 ms..49.19 ms)
-
-// * Legends *
-  Mean      : Arithmetic mean of all measurements
-  Error     : Half of 99.9% confidence interval
-  StdDev    : Standard deviation of all measurements
-  Allocated : Allocated memory per single operation (managed only, inclusive, 1KB = 1024B)
-  1 ms      : 1 Millisecond (0.001 sec)
-
-// * Diagnostic Output - MemoryDiagnoser *
-
-
-// ***** BenchmarkRunner: End *****
-Run time: 00:04:09 (249.42 sec), executed benchmarks: 4
-
-### To run benchmark:
-1. Goto .\DynamoDBv2.Transactions
-2. dotnet build .\test\DynamoDBv2.Transactions.Benchmarks\ -c Release
-3. Execute in shell .\test\DynamoDBv2.Transactions.Benchmarks\bin\Release\net8.0\DynamoDBv2.Transactions.exe
+### To run benchmarks:
+```bash
+dotnet run --project test/DynamoDBv2.Transactions.Benchmarks -c Release -- --filter '*MapperBenchmark*'
+dotnet run --project test/DynamoDBv2.Transactions.Benchmarks -c Release -- --filter '*Benchmark*'
+```
 
 ## Running Tests
 
@@ -231,7 +278,6 @@ Tests are written using xUnit and should be configured to interact directly with
 [Fact]
 public async Task SaveDataAndRetrieve()
 {
-    var writer = new TransactionalWriter(new TransactionManager(_fixture.Db.Client));
     var userId = Guid.NewGuid().ToString();
     var testItem = new TestTable
     {
@@ -239,9 +285,9 @@ public async Task SaveDataAndRetrieve()
         SomeInt = 123
     };
 
-    await using (var writer = new TransactionalWriter(new TransactionManager(_fixture.Db.Client)))
+    await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
     {
-        writer.CreateOrUpdate(testItem);
+        transactor.CreateOrUpdate(testItem);
     }
 
     var retrievedItem = await _fixture.Db.Context.LoadAsync<TestTable>(userId);

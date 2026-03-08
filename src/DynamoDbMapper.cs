@@ -9,10 +9,45 @@ namespace DynamoDBv2.Transactions
 {
     public static class DynamoDbMapper
     {
+        private static readonly ConcurrentDictionary<Type, IGeneratedTypeMapping> GeneratedMappings = new();
         private static readonly ConcurrentDictionary<(Type, string), string> PropertyNameCache = new();
         private static readonly ConcurrentDictionary<Type, string> HashKeyCache = new();
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> PropertyCache = new();
         private static readonly ConcurrentDictionary<Type, PropertyInfo?> VersionPropertyCache = new();
+
+        /// <summary>
+        /// Registers a source-generated mapping for the specified type.
+        /// Called automatically by generated [ModuleInitializer] code.
+        /// </summary>
+        /// <typeparam name="T">The DynamoDB entity type.</typeparam>
+        /// <param name="mapping">The generated mapping instance.</param>
+        public static void RegisterGeneratedMapping<T>(IGeneratedTypeMapping mapping)
+            where T : class
+        {
+            GeneratedMappings[typeof(T)] = mapping ?? throw new ArgumentNullException(nameof(mapping));
+        }
+
+        /// <summary>
+        /// Gets the DynamoDB table name for the specified type,
+        /// using the generated mapping if available, otherwise falling back to reflection.
+        /// </summary>
+        /// <param name="type">The entity type.</param>
+        /// <returns>The DynamoDB table name.</returns>
+        public static string GetTableName(Type type)
+        {
+            if (GeneratedMappings.TryGetValue(type, out var mapping))
+            {
+                return mapping.TableName;
+            }
+
+            var tableAttribute = type.GetCustomAttribute<DynamoDBTableAttribute>();
+            if (tableAttribute != null && !string.IsNullOrEmpty(tableAttribute.TableName))
+            {
+                return tableAttribute.TableName;
+            }
+
+            return type.Name;
+        }
 
         public static AttributeValue? GetAttributeValue(object value)
         {
@@ -22,6 +57,11 @@ namespace DynamoDBv2.Transactions
 
         public static string GetPropertyAttributedName(Type type, string propertyName)
         {
+            if (GeneratedMappings.TryGetValue(type, out var mapping))
+            {
+                return mapping.GetPropertyAttributeName(propertyName);
+            }
+
             return PropertyNameCache.GetOrAdd((type, propertyName), static key =>
             {
                 var (t, pName) = key;
@@ -62,6 +102,11 @@ namespace DynamoDBv2.Transactions
 
         public static string GetHashKeyAttributeName(Type type)
         {
+            if (GeneratedMappings.TryGetValue(type, out var mapping))
+            {
+                return mapping.HashKeyAttributeName;
+            }
+
             return HashKeyCache.GetOrAdd(type, static t =>
             {
                 foreach (var property in GetCachedProperties(t))
@@ -97,6 +142,12 @@ namespace DynamoDBv2.Transactions
             }
 
             var type = obj.GetType();
+
+            if (GeneratedMappings.TryGetValue(type, out var mapping))
+            {
+                return mapping.MapToAttributes(obj, conversion);
+            }
+
             var properties = GetCachedProperties(type);
 
             foreach (var property in properties)
@@ -149,6 +200,11 @@ namespace DynamoDBv2.Transactions
             }
 
             var type = item.GetType();
+
+            if (GeneratedMappings.TryGetValue(type, out var mapping))
+            {
+                return mapping.GetVersion(item);
+            }
 
             var versionProperty = VersionPropertyCache.GetOrAdd(type, static t =>
                 GetCachedProperties(t)
