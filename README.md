@@ -250,14 +250,29 @@ docker-compose up --exit-code-from tests tests localstack
 docker-compose up --exit-code-from unittests unittests
 ```
 
+## Versioning
+
+This library's version tracks the underlying AWSSDK.DynamoDBv2 version:
+
+```
+Format: {aws_major}.{aws_minor}.{aws_patch}.{aws_rev × 100 + lib_rev}
+```
+
+| AWS SDK Version | Library Release | Meaning |
+|----------------|----------------|---------|
+| 4.0.14.1       | 4.0.14.100     | Initial release for AWS SDK 4.0.14.1 |
+| 4.0.14.1       | 4.0.14.101     | Library-only fix (same AWS SDK) |
+| 4.0.15.0       | 4.0.15.0       | New AWS SDK version, lib rev 0 |
+
+The first three segments always tell you which AWS SDK version is inside.
+
 ## Contributing
 
-When creating PRs, please review the following guidelines:
+When creating PRs, please ensure:
 
-- [ ] The action code does not contain sensitive information.
-- [ ] At least one of the commit messages contains the appropriate `+semver:` keywords listed under [Incrementing the Version] for major and minor increments.
-- [ ] The action has been recompiled.  See [Recompiling Manually] for details.
-- [ ] The README.md has been updated with the latest version of the action.  See [Updating the README.md] for details.
+- [ ] No sensitive information (tokens, keys, credentials) is included
+- [ ] All existing tests pass (`docker-compose up --exit-code-from tests tests localstack`)
+- [ ] New features include appropriate test coverage
 
 ## License
 
@@ -265,4 +280,4 @@ Copyright &copy; 2026, Vitali Bibikov. Code released under the [MIT license](LIC
 
 ## Contact
 
-Vitali Bibikov - [bibikovvitaly@gmail.com]
+Vitali Bibikov — bibikovvitaly@gmail.com
