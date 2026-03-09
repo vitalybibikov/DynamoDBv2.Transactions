@@ -230,7 +230,7 @@ public class DynamoDbReadTransactorTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_CalledMultipleTimes_RebuildsResult()
+    public async Task ExecuteAsync_CalledMultipleTimes_ClearsRequestsBetweenCalls()
     {
         var callCount = 0;
         var mockManager = new Mock<IReadTransactionManager>();
@@ -258,9 +258,13 @@ public class DynamoDbReadTransactorTests
             });
 
         var transactor = new DynamoDbReadTransactor(mockManager.Object);
-        transactor.Get<ProductTestEntity>("prod-1");
 
+        // First batch
+        transactor.Get<ProductTestEntity>("prod-1");
         var result1 = await transactor.ExecuteAsync();
+
+        // Second batch — must add requests again since previous were cleared
+        transactor.Get<ProductTestEntity>("prod-2");
         var result2 = await transactor.ExecuteAsync();
 
         Assert.Equal(2, callCount);

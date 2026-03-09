@@ -84,7 +84,7 @@ namespace DynamoDBv2.Transactions
                 char c => GetAttributeValue(c),
                 DateTime dt => GetAttributeValue(dt),
                 DateTimeOffset dto => new AttributeValue { S = dto.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffzzz") },
-                Enum e => new AttributeValue { N = Convert.ToInt32(e).ToString(CultureInfo.InvariantCulture) },
+                Enum e => new AttributeValue { N = Convert.ToInt64(e).ToString(CultureInfo.InvariantCulture) },
                 _ => ConvertToAttributeValueV2(value),
             };
         }
@@ -188,6 +188,32 @@ namespace DynamoDBv2.Transactions
         }
 
         /// <summary>
+        /// Tries to get the range key attribute name, returning null if no range key exists.
+        /// </summary>
+        /// <param name="type">The entity type.</param>
+        /// <returns>The range key attribute name, or null if no range key is defined.</returns>
+        public static string? TryGetRangeKeyAttributeName(Type type)
+        {
+            if (GeneratedMappings.TryGetValue(type, out var mapping))
+            {
+                return mapping.RangeKeyAttributeName;
+            }
+
+            foreach (var property in GetCachedProperties(type))
+            {
+                var rangeKeyAttr = property.GetCustomAttribute<DynamoDBRangeKeyAttribute>();
+                if (rangeKeyAttr != null)
+                {
+                    return string.IsNullOrWhiteSpace(rangeKeyAttr.AttributeName)
+                        ? property.Name
+                        : rangeKeyAttr.AttributeName;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Deserializes a DynamoDB attribute dictionary back to a typed object.
         /// Uses source-generated mapping if available, otherwise falls back to reflection.
         /// </summary>
@@ -258,7 +284,12 @@ namespace DynamoDBv2.Transactions
 
             if (GeneratedMappings.TryGetValue(type, out var mapping))
             {
-                return mapping.MapToAttributes(obj, conversion);
+                // Source-generated code always produces V2 format;
+                // fall through to reflection for explicit V1 requests.
+                if (conversion == DynamoDBEntryConversion.V2)
+                {
+                    return mapping.MapToAttributes(obj, conversion);
+                }
             }
 
             var properties = GetCachedProperties(type);
@@ -344,6 +375,240 @@ namespace DynamoDBv2.Transactions
             return (GetPropertyAttributedName(type, versionProperty.Name), value);
         }
 
+        /// <summary>
+        /// Converts a DynamoDB <see cref="AttributeValue"/> to a CLR object of the specified type.
+        /// Supports V1 and V2 attribute formats, including primitives, enums, sets, lists, maps, and nested objects.
+        /// </summary>
+        /// <param name="attrValue">The DynamoDB attribute value.</param>
+        /// <param name="targetType">The target CLR type to convert to.</param>
+        /// <returns>The converted value, or null if the attribute represents a NULL value.</returns>
+        public static object? ConvertFromAttributeValue(AttributeValue attrValue, Type targetType)
+        {
+            if (attrValue.NULL == true)
+            {
+                return null;
+            }
+
+            var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+            if (attrValue.S != null)
+            {
+                if (underlyingType == typeof(string))
+                {
+                    return attrValue.S;
+                }
+
+                if (underlyingType == typeof(char) && attrValue.S.Length > 0)
+                {
+                    return attrValue.S[0];
+                }
+
+                if (underlyingType == typeof(DateTime))
+                {
+                    return DateTime.Parse(attrValue.S, CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AdjustToUniversal);
+                }
+
+                if (underlyingType == typeof(Guid))
+                {
+                    return Guid.Parse(attrValue.S);
+                }
+
+                if (underlyingType == typeof(DateTimeOffset))
+                {
+                    return DateTimeOffset.Parse(attrValue.S, CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None);
+                }
+            }
+
+            if (attrValue.N != null)
+            {
+                if (underlyingType == typeof(int))
+                {
+                    return int.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(long))
+                {
+                    return long.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(decimal))
+                {
+                    return decimal.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(double))
+                {
+                    return double.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(float))
+                {
+                    return float.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(short))
+                {
+                    return short.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(byte))
+                {
+                    return byte.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(bool))
+                {
+                    return attrValue.N != "0";
+                }
+
+                if (underlyingType.IsEnum)
+                {
+                    return Enum.ToObject(underlyingType, long.Parse(attrValue.N, CultureInfo.InvariantCulture));
+                }
+            }
+
+            if (underlyingType == typeof(bool))
+            {
+                return attrValue.BOOL;
+            }
+
+            if (attrValue.B != null && underlyingType == typeof(byte[]))
+            {
+                return attrValue.B.ToArray();
+            }
+
+            if (attrValue.B != null && underlyingType == typeof(MemoryStream))
+            {
+                var ms = new MemoryStream();
+                attrValue.B.CopyTo(ms);
+                ms.Position = 0;
+                return ms;
+            }
+
+            // Dictionary<string, T> from Map
+            if (underlyingType.IsGenericType && underlyingType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+            {
+                var args = underlyingType.GetGenericArguments();
+                if (args[0] == typeof(string))
+                {
+                    var dict = (IDictionary)Activator.CreateInstance(underlyingType)!;
+                    foreach (var kvp in attrValue.M)
+                    {
+                        dict[kvp.Key] = ConvertFromAttributeValue(kvp.Value, args[1]);
+                    }
+                    return dict;
+                }
+            }
+
+            // HashSet<T> from SS/NS/BS
+            if (underlyingType.IsGenericType && underlyingType.GetGenericTypeDefinition() == typeof(HashSet<>))
+            {
+                var elementType = underlyingType.GetGenericArguments()[0];
+
+                if (elementType == typeof(string) && attrValue.SS?.Count > 0)
+                {
+                    return new HashSet<string>(attrValue.SS);
+                }
+
+                if (IsNumericType(elementType) && attrValue.NS?.Count > 0)
+                {
+                    var set = Activator.CreateInstance(underlyingType)!;
+                    var addMethod = underlyingType.GetMethod("Add")!;
+                    foreach (var n in attrValue.NS)
+                    {
+                        addMethod.Invoke(set, new[] { Convert.ChangeType(decimal.Parse(n, CultureInfo.InvariantCulture), elementType, CultureInfo.InvariantCulture) });
+                    }
+                    return set;
+                }
+
+                if (attrValue.BS?.Count > 0)
+                {
+                    if (elementType == typeof(byte[]))
+                    {
+                        var set = new HashSet<byte[]>();
+                        foreach (var ms in attrValue.BS)
+                        {
+                            set.Add(ms.ToArray());
+                        }
+                        return set;
+                    }
+
+                    if (elementType == typeof(MemoryStream))
+                    {
+                        var set = new HashSet<MemoryStream>();
+                        foreach (var ms in attrValue.BS)
+                        {
+                            var copy = new MemoryStream();
+                            ms.CopyTo(copy);
+                            copy.Position = 0;
+                            set.Add(copy);
+                        }
+                        return set;
+                    }
+                }
+            }
+
+            // List<T> / IList<T> / ICollection<T> / IEnumerable<T> from L, SS, or NS
+            if (underlyingType.IsGenericType)
+            {
+                var genericDef = underlyingType.GetGenericTypeDefinition();
+                if (genericDef == typeof(List<>) || genericDef == typeof(IList<>) ||
+                    genericDef == typeof(ICollection<>) || genericDef == typeof(IEnumerable<>))
+                {
+                    var elementType = underlyingType.GetGenericArguments()[0];
+
+                    // V1 fallback: SS (string sets) — check before L since L is always initialized
+                    if (elementType == typeof(string) && attrValue.SS?.Count > 0)
+                    {
+                        return new List<string>(attrValue.SS);
+                    }
+
+                    // V1 fallback: NS (number sets)
+                    if (IsNumericType(elementType) && attrValue.NS?.Count > 0)
+                    {
+                        var listType = typeof(List<>).MakeGenericType(elementType);
+                        var list = (IList)Activator.CreateInstance(listType)!;
+                        foreach (var n in attrValue.NS)
+                        {
+                            list.Add(Convert.ChangeType(decimal.Parse(n, CultureInfo.InvariantCulture), elementType, CultureInfo.InvariantCulture));
+                        }
+                        return list;
+                    }
+
+                    // V2 format: L (list of AttributeValues) — always process, may be empty
+                    {
+                        var listType = typeof(List<>).MakeGenericType(elementType);
+                        var list = (IList)Activator.CreateInstance(listType)!;
+                        foreach (var item in attrValue.L)
+                        {
+                            list.Add(ConvertFromAttributeValue(item, elementType));
+                        }
+                        return list;
+                    }
+                }
+            }
+
+            // Array from List
+            if (underlyingType.IsArray)
+            {
+                var elementType = underlyingType.GetElementType()!;
+                var array = Array.CreateInstance(elementType, attrValue.L.Count);
+                for (int i = 0; i < attrValue.L.Count; i++)
+                {
+                    array.SetValue(ConvertFromAttributeValue(attrValue.L[i], elementType), i);
+                }
+                return array;
+            }
+
+            // Nested class/record from Map
+            if (underlyingType.IsClass && underlyingType != typeof(string) && attrValue.M.Count > 0)
+            {
+                return MapFromAttributes(underlyingType, attrValue.M);
+            }
+
+            return null;
+        }
+
         private static PropertyInfo[] GetCachedProperties(Type type)
         {
             return PropertyCache.GetOrAdd(type, static t => t.GetProperties()
@@ -383,7 +648,7 @@ namespace DynamoDBv2.Transactions
                 case DateTimeOffset dto:
                     return new AttributeValue { S = dto.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffzzz") };
                 case Enum e:
-                    return new AttributeValue { N = Convert.ToInt32(e).ToString(CultureInfo.InvariantCulture) };
+                    return new AttributeValue { N = Convert.ToInt64(e).ToString(CultureInfo.InvariantCulture) };
                 case IDictionary dictionary:
                     return new AttributeValue { M = MapDictionaryToAttributeValue(dictionary, ConvertToAttributeValueV2) };
                 case IEnumerable enumerable:
@@ -394,6 +659,12 @@ namespace DynamoDBv2.Transactions
 
                         if (isHashSet)
                         {
+                            // DynamoDB does not allow empty sets (SS/NS/BS)
+                            if (enumerable is ICollection emptyCheck && emptyCheck.Count == 0)
+                            {
+                                return new AttributeValue { NULL = true };
+                            }
+
                             if (elementType != null)
                             {
                                 if (IsNumericType(elementType))
@@ -502,7 +773,7 @@ namespace DynamoDBv2.Transactions
                 case DateTimeOffset dto:
                     return new AttributeValue { S = dto.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffzzz") };
                 case Enum e:
-                    return new AttributeValue { N = Convert.ToInt32(e).ToString(CultureInfo.InvariantCulture) };
+                    return new AttributeValue { N = Convert.ToInt64(e).ToString(CultureInfo.InvariantCulture) };
                 case IDictionary dictionary:
                     return new AttributeValue { M = MapDictionaryToAttributeValue(dictionary, ConvertToAttributeValueV1) };
                 case IEnumerable enumerable:
@@ -518,7 +789,9 @@ namespace DynamoDBv2.Transactions
                             {
                                 boolNsList.Add(b ? "1" : "0");
                             }
-                            return new AttributeValue { NS = boolNsList };
+                            return boolNsList.Count > 0
+                                ? new AttributeValue { NS = boolNsList }
+                                : new AttributeValue { NULL = true };
                         }
                         else if (IsNumericType(elementType))
                         {
@@ -527,7 +800,9 @@ namespace DynamoDBv2.Transactions
                             {
                                 nsList.Add(Convert.ToString(e, CultureInfo.InvariantCulture)!);
                             }
-                            return new AttributeValue { NS = nsList };
+                            return nsList.Count > 0
+                                ? new AttributeValue { NS = nsList }
+                                : new AttributeValue { NULL = true };
                         }
                         else if (IsNumericNullableType(elementType))
                         {
@@ -545,7 +820,9 @@ namespace DynamoDBv2.Transactions
                             {
                                 ssList.Add(e is DateTime dt ? dt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") : e.ToString()!);
                             }
-                            return new AttributeValue { SS = ssList };
+                            return ssList.Count > 0
+                                ? new AttributeValue { SS = ssList }
+                                : new AttributeValue { NULL = true };
                         }
                         else if (elementType == typeof(byte[]) || elementType == typeof(MemoryStream))
                         {
@@ -569,7 +846,9 @@ namespace DynamoDBv2.Transactions
                                     throw new ArgumentException("Invalid binary element type in collection.");
                                 }
                             }
-                            return new AttributeValue { BS = bsList };
+                            return bsList.Count > 0
+                                ? new AttributeValue { BS = bsList }
+                                : new AttributeValue { NULL = true };
                         }
                     }
                     throw new ArgumentException($"Unsupported collection type: {value.GetType()}");
@@ -591,163 +870,6 @@ namespace DynamoDBv2.Transactions
 
                     throw new ArgumentException($"Unsupported type: {value.GetType()}");
             }
-        }
-
-        private static object? ConvertFromAttributeValue(AttributeValue attrValue, Type targetType)
-        {
-            if (attrValue.NULL == true)
-            {
-                return null;
-            }
-
-            var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
-
-            if (attrValue.S != null)
-            {
-                if (underlyingType == typeof(string))
-                {
-                    return attrValue.S;
-                }
-
-                if (underlyingType == typeof(char) && attrValue.S.Length > 0)
-                {
-                    return attrValue.S[0];
-                }
-
-                if (underlyingType == typeof(DateTime))
-                {
-                    return DateTime.Parse(attrValue.S, CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AdjustToUniversal);
-                }
-
-                if (underlyingType == typeof(Guid))
-                {
-                    return Guid.Parse(attrValue.S);
-                }
-
-                if (underlyingType == typeof(DateTimeOffset))
-                {
-                    return DateTimeOffset.Parse(attrValue.S, CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None);
-                }
-            }
-
-            if (attrValue.N != null)
-            {
-                if (underlyingType == typeof(int))
-                {
-                    return int.Parse(attrValue.N, CultureInfo.InvariantCulture);
-                }
-
-                if (underlyingType == typeof(long))
-                {
-                    return long.Parse(attrValue.N, CultureInfo.InvariantCulture);
-                }
-
-                if (underlyingType == typeof(decimal))
-                {
-                    return decimal.Parse(attrValue.N, CultureInfo.InvariantCulture);
-                }
-
-                if (underlyingType == typeof(double))
-                {
-                    return double.Parse(attrValue.N, CultureInfo.InvariantCulture);
-                }
-
-                if (underlyingType == typeof(float))
-                {
-                    return float.Parse(attrValue.N, CultureInfo.InvariantCulture);
-                }
-
-                if (underlyingType == typeof(short))
-                {
-                    return short.Parse(attrValue.N, CultureInfo.InvariantCulture);
-                }
-
-                if (underlyingType == typeof(byte))
-                {
-                    return byte.Parse(attrValue.N, CultureInfo.InvariantCulture);
-                }
-
-                if (underlyingType == typeof(bool))
-                {
-                    return attrValue.N != "0";
-                }
-
-                if (underlyingType.IsEnum)
-                {
-                    return Enum.ToObject(underlyingType, int.Parse(attrValue.N, CultureInfo.InvariantCulture));
-                }
-            }
-
-            if (underlyingType == typeof(bool))
-            {
-                return attrValue.BOOL;
-            }
-
-            if (attrValue.B != null && underlyingType == typeof(byte[]))
-            {
-                return attrValue.B.ToArray();
-            }
-
-            if (attrValue.B != null && underlyingType == typeof(MemoryStream))
-            {
-                var ms = new MemoryStream();
-                attrValue.B.CopyTo(ms);
-                ms.Position = 0;
-                return ms;
-            }
-
-            // Dictionary<string, T> from Map
-            if (underlyingType.IsGenericType && underlyingType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
-            {
-                var args = underlyingType.GetGenericArguments();
-                if (args[0] == typeof(string))
-                {
-                    var dict = (IDictionary)Activator.CreateInstance(underlyingType)!;
-                    foreach (var kvp in attrValue.M)
-                    {
-                        dict[kvp.Key] = ConvertFromAttributeValue(kvp.Value, args[1]);
-                    }
-                    return dict;
-                }
-            }
-
-            // List<T> / IList<T> / ICollection<T> / IEnumerable<T> from List
-            if (underlyingType.IsGenericType)
-            {
-                var genericDef = underlyingType.GetGenericTypeDefinition();
-                if (genericDef == typeof(List<>) || genericDef == typeof(IList<>) ||
-                    genericDef == typeof(ICollection<>) || genericDef == typeof(IEnumerable<>))
-                {
-                    var elementType = underlyingType.GetGenericArguments()[0];
-                    var listType = typeof(List<>).MakeGenericType(elementType);
-                    var list = (IList)Activator.CreateInstance(listType)!;
-                    foreach (var item in attrValue.L)
-                    {
-                        list.Add(ConvertFromAttributeValue(item, elementType));
-                    }
-                    return list;
-                }
-            }
-
-            // Array from List
-            if (underlyingType.IsArray)
-            {
-                var elementType = underlyingType.GetElementType()!;
-                var array = Array.CreateInstance(elementType, attrValue.L.Count);
-                for (int i = 0; i < attrValue.L.Count; i++)
-                {
-                    array.SetValue(ConvertFromAttributeValue(attrValue.L[i], elementType), i);
-                }
-                return array;
-            }
-
-            // Nested class/record from Map
-            if (underlyingType.IsClass && underlyingType != typeof(string) && attrValue.M.Count > 0)
-            {
-                return MapFromAttributes(underlyingType, attrValue.M);
-            }
-
-            return null;
         }
 
         private static bool IsNumericType(Type type)

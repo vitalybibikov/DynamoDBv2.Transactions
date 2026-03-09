@@ -119,27 +119,15 @@ public class ReadTransactionManagerTests
     // ──────────────────────────────────────────────
 
     [Fact]
-    public async Task ExecuteGetTransactionAsync_EmptyRequestList_Succeeds()
+    public async Task ExecuteGetTransactionAsync_EmptyRequestList_ThrowsArgumentException()
     {
         var mockClient = new Mock<IAmazonDynamoDB>();
-        TransactGetItemsRequest? capturedRequest = null;
-
-        mockClient.Setup(c => c.TransactGetItemsAsync(
-            It.IsAny<TransactGetItemsRequest>(),
-            It.IsAny<CancellationToken>()))
-            .Callback<TransactGetItemsRequest, CancellationToken>((req, _) => capturedRequest = req)
-            .ReturnsAsync(new TransactGetItemsResponse
-            {
-                Responses = new List<ItemResponse>()
-            });
-
         var manager = new ReadTransactionManager(mockClient.Object);
 
-        var result = await manager.ExecuteGetTransactionAsync(
-            new List<IGetTransactionRequest>());
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            manager.ExecuteGetTransactionAsync(new List<IGetTransactionRequest>()));
 
-        Assert.NotNull(capturedRequest);
-        Assert.Empty(capturedRequest!.TransactItems);
+        Assert.Contains("at least one item", ex.Message);
     }
 
     [Fact]
