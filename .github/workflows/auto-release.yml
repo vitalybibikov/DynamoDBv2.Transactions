@@ -16,6 +16,13 @@ env:
   DOTNET_NOLOGO: true
   NuGetDirectory: ${{github.workspace}}/nupkgs
 
+# Versioning scheme:
+#   <Version> = {aws_major}.{aws_minor}.{aws_patch}.{aws_rev * 100 + lib_rev}
+#   Example: AWS SDK 4.0.14.1, lib revision 0 → 4.0.14.100
+#   Example: AWS SDK 4.0.14.1, lib revision 3 → 4.0.14.103
+#   Example: AWS SDK 4.0.15.0, lib revision 0 → 4.0.15.0
+#   When AWS SDK bumps, reset lib_rev to 0 and recompute the 4th segment.
+
 jobs:
   detect-version:
     runs-on: ubuntu-latest
@@ -23,19 +30,26 @@ jobs:
       changed: ${{ steps.version-check.outputs.changed }}
       current_version: ${{ steps.version-check.outputs.current_version }}
       previous_version: ${{ steps.version-check.outputs.previous_version }}
+      aws_sdk_version: ${{ steps.version-check.outputs.aws_sdk_version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
-      - name: Detect AWS SDK version change
+      - name: Detect version change
         id: version-check
         run: |
-          CURRENT_VERSION=$(grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' src/DynamoDBv2.Transactions.csproj)
+          # Read the library <Version> (source of truth for NuGet version)
+          CURRENT_VERSION=$(grep -oP '(?<=<Version>)[^<]*' src/DynamoDBv2.Transactions.csproj)
           echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
 
-          PREVIOUS_VERSION=$(git show HEAD~1:src/DynamoDBv2.Transactions.csproj 2>/dev/null | grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' || echo "")
+          # Read AWS SDK version for release notes
+          AWS_SDK_VERSION=$(grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' src/DynamoDBv2.Transactions.csproj)
+          echo "aws_sdk_version=$AWS_SDK_VERSION" >> "$GITHUB_OUTPUT"
+
+          # Read previous <Version>
+          PREVIOUS_VERSION=$(git show HEAD~1:src/DynamoDBv2.Transactions.csproj 2>/dev/null | grep -oP '(?<=<Version>)[^<]*' || echo "")
           echo "previous_version=$PREVIOUS_VERSION" >> "$GITHUB_OUTPUT"
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -43,10 +57,10 @@ jobs:
             echo "Manual dispatch: forcing publish of $CURRENT_VERSION"
           elif [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ] && [ -n "$PREVIOUS_VERSION" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "AWS SDK version changed: $PREVIOUS_VERSION -> $CURRENT_VERSION"
+            echo "Version changed: $PREVIOUS_VERSION -> $CURRENT_VERSION (AWS SDK: $AWS_SDK_VERSION)"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No AWS SDK version change detected"
+            echo "No version change detected (current: $CURRENT_VERSION)"
           fi
 
   create-release:
@@ -61,6 +75,7 @@ jobs:
         run: |
           VERSION="${{ needs.detect-version.outputs.current_version }}"
           PREV="${{ needs.detect-version.outputs.previous_version }}"
+          AWS_SDK="${{ needs.detect-version.outputs.aws_sdk_version }}"
           TAG="v$VERSION"
 
           # Check if tag already exists
@@ -73,8 +88,8 @@ jobs:
             --title "v$VERSION" \
             --notes "## Changes
 
-          - AWSSDK.DynamoDBv2 updated from $PREV to $VERSION
-          - Library version synced to $VERSION
+          - Library version: $VERSION (previous: $PREV)
+          - AWSSDK.DynamoDBv2: $AWS_SDK
 
           Published automatically to [NuGet](https://www.nuget.org/packages/DynamoDBv2.Transactions/$VERSION)." \
             --target master
