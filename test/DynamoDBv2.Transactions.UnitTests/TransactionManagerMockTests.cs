@@ -19,11 +19,10 @@ namespace DynamoDBv2.Transactions.UnitTests
             var manager = new TransactionManager(mockAmazonDynamoDB.Object);
             var requests = new List<ITransactionRequest>
             {
-                //new ConditionCheckTransactionRequest<SomeDynamoDbEntity>(),
                 new DeleteTransactionRequest<SomeDynamoDbEntity>(new KeyValue { Key = "Id", Value = "123" }),
                 new UpdateTransactionRequest<SomeDynamoDbEntity>(),
                 new PutTransactionRequest<SomeDynamoDbEntity>(new SomeDynamoDbEntity()),
-                new PatchTransactionRequest<SomeDynamoDbEntity>(new KeyValue { Key = "Id", Value = "123" }, new Property() { Name = "Name", Value = "Test"})
+                new PatchTransactionRequest<SomeDynamoDbEntity>(new KeyValue { Key = "Id", Value = "456" }, new Property() { Name = "Name", Value = "Test"})
             };
 
             // Act
@@ -41,11 +40,11 @@ namespace DynamoDBv2.Transactions.UnitTests
             var manager = new TransactionManager(mockAmazonDynamoDB.Object);
             var requests = new List<ITransactionRequest>
             {
-                new ConditionCheckTransactionRequest<SomeDynamoDbEntity>("123" ),
-                new DeleteTransactionRequest<SomeDynamoDbEntity>(new KeyValue { Key = "Id", Value = "123" }),
+                new ConditionCheckTransactionRequest<SomeDynamoDbEntity>("123"),
+                new DeleteTransactionRequest<SomeDynamoDbEntity>(new KeyValue { Key = "Id", Value = "456" }),
                 new UpdateTransactionRequest<SomeDynamoDbEntity>(),
                 new PutTransactionRequest<SomeDynamoDbEntity>(new SomeDynamoDbEntity()),
-                new PatchTransactionRequest<SomeDynamoDbEntity>(new KeyValue { Key = "Id", Value = "123" }, new Property() { Name = "Name", Value = "Test"})
+                new PatchTransactionRequest<SomeDynamoDbEntity>(new KeyValue { Key = "Id", Value = "789" }, new Property() { Name = "Name", Value = "Test"})
             };
 
             // Act

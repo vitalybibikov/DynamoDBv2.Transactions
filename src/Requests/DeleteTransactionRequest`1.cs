@@ -36,6 +36,23 @@ public sealed class DeleteTransactionRequest<T> : TransactionRequest
         };
     }
 
+    /// <summary>
+    /// Delete item by its HASH + RANGE key values.
+    /// </summary>
+    /// <param name="hashKeyValue">Value of the hash key.</param>
+    /// <param name="rangeKeyValue">Value of the range key.</param>
+    public DeleteTransactionRequest(string hashKeyValue, string rangeKeyValue)
+        : base(typeof(T))
+    {
+        var hashKeyName = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
+        var rangeKeyName = DynamoDbMapper.GetRangeKeyAttributeName(typeof(T));
+        Key = new Dictionary<string, AttributeValue>
+        {
+            { hashKeyName, new AttributeValue { S = hashKeyValue } },
+            { rangeKeyName, new AttributeValue { S = rangeKeyValue } }
+        };
+    }
+
     private void SetKey(Dictionary<string, AttributeValue> key)
     {
         Key = key;
@@ -64,6 +81,11 @@ public sealed class DeleteTransactionRequest<T> : TransactionRequest
         if (!String.IsNullOrEmpty(ConditionExpression))
         {
             delete.ConditionExpression = ConditionExpression;
+        }
+
+        if (ReturnValuesOnConditionCheckFailure != null)
+        {
+            delete.ReturnValuesOnConditionCheckFailure = ReturnValuesOnConditionCheckFailure;
         }
 
         return Operation.Delete(delete);

@@ -15,9 +15,9 @@ namespace DynamoDBv2.Transactions.UnitTests
             request.Equals<SomeDynamoDbEntity, string>(x => x.Status, "Active");
 
             var op = request.GetOperation();
-            Assert.Equal("#Status = :StatusValue", op.ConditionCheckType!.ConditionExpression);
-            Assert.Equal("Status", op.ConditionCheckType.ExpressionAttributeNames["#Status"]);
-            Assert.Equal("Active", op.ConditionCheckType.ExpressionAttributeValues[":StatusValue"].S);
+            Assert.Equal("#p0 = :v0", op.ConditionCheckType!.ConditionExpression);
+            Assert.Equal("Status", op.ConditionCheckType.ExpressionAttributeNames["#p0"]);
+            Assert.Equal("Active", op.ConditionCheckType.ExpressionAttributeValues[":v0"].S);
         }
 
         [Fact]
@@ -28,7 +28,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             request.NotEquals<SomeDynamoDbEntity, string>(x => x.Status, "Deleted");
 
             var op = request.GetOperation();
-            Assert.Equal("#Status <> :StatusValue", op.ConditionCheckType!.ConditionExpression);
+            Assert.Equal("#p0 <> :v0", op.ConditionCheckType!.ConditionExpression);
         }
 
         [Fact]
@@ -39,8 +39,8 @@ namespace DynamoDBv2.Transactions.UnitTests
             request.GreaterThan<SomeDynamoDbEntity, double>(x => x.Amount, 100.0);
 
             var op = request.GetOperation();
-            Assert.Equal("#Amount > :AmountValue", op.ConditionCheckType!.ConditionExpression);
-            Assert.Equal("100", op.ConditionCheckType.ExpressionAttributeValues[":AmountValue"].N);
+            Assert.Equal("#p0 > :v0", op.ConditionCheckType!.ConditionExpression);
+            Assert.Equal("100", op.ConditionCheckType.ExpressionAttributeValues[":v0"].N);
         }
 
         [Fact]
@@ -51,7 +51,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             request.LessThan<SomeDynamoDbEntity, double>(x => x.Amount, 50.0);
 
             var op = request.GetOperation();
-            Assert.Equal("#Amount < :AmountValue", op.ConditionCheckType!.ConditionExpression);
+            Assert.Equal("#p0 < :v0", op.ConditionCheckType!.ConditionExpression);
         }
 
         [Fact]
@@ -62,8 +62,8 @@ namespace DynamoDBv2.Transactions.UnitTests
             request.VersionEquals<SomeDynamoDbEntity>(x => x.Version, 5L);
 
             var op = request.GetOperation();
-            Assert.Equal("#Version = :VersionValue", op.ConditionCheckType!.ConditionExpression);
-            Assert.Equal("5", op.ConditionCheckType.ExpressionAttributeValues[":VersionValue"].N);
+            Assert.Equal("#p0 = :v0", op.ConditionCheckType!.ConditionExpression);
+            Assert.Equal("5", op.ConditionCheckType.ExpressionAttributeValues[":v0"].N);
         }
 
         [Fact]
@@ -74,8 +74,8 @@ namespace DynamoDBv2.Transactions.UnitTests
             request.VersionEquals<SomeDynamoDbEntity>(x => x.Version, null);
 
             var op = request.GetOperation();
-            Assert.Equal("#Version = :VersionValue", op.ConditionCheckType!.ConditionExpression);
-            Assert.True(op.ConditionCheckType.ExpressionAttributeValues[":VersionValue"].NULL);
+            Assert.Equal("#p0 = :v0", op.ConditionCheckType!.ConditionExpression);
+            Assert.True(op.ConditionCheckType.ExpressionAttributeValues[":v0"].NULL);
         }
 
         [Fact]
@@ -130,8 +130,8 @@ namespace DynamoDBv2.Transactions.UnitTests
             request.Equals<SomeDynamoDbEntity, string>(x => x.Id, "val");
 
             var op = request.GetOperation();
-            Assert.Contains("#MyId", op.ConditionCheckType!.ExpressionAttributeNames.Keys);
-            Assert.Equal("MyId", op.ConditionCheckType.ExpressionAttributeNames["#MyId"]);
+            Assert.Contains("#p0", op.ConditionCheckType!.ExpressionAttributeNames.Keys);
+            Assert.Equal("MyId", op.ConditionCheckType.ExpressionAttributeNames["#p0"]);
         }
 
         [Fact]

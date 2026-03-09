@@ -9,6 +9,7 @@
         Update,
         Delete,
         ConditionCheck,
-        Patch
+        Patch,
+        Get
     }
 }

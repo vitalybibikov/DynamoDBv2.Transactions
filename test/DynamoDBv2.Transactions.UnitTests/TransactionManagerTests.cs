@@ -114,13 +114,14 @@ namespace DynamoDBv2.Transactions.UnitTests
         }
 
         [Fact]
-        public async Task ExecuteTransaction_EmptyRequests_StillCallsDynamoDB()
+        public async Task ExecuteTransaction_EmptyRequests_ReturnsNullWithoutCallingDynamoDB()
         {
-            await _manager.ExecuteTransactionAsync(Array.Empty<ITransactionRequest>());
+            var result = await _manager.ExecuteTransactionAsync(Array.Empty<ITransactionRequest>());
 
+            Assert.Null(result);
             _mockClient.Verify(c => c.TransactWriteItemsAsync(
-                It.Is<TransactWriteItemsRequest>(r => r.TransactItems.Count == 0),
-                It.IsAny<CancellationToken>()), Times.Once);
+                It.IsAny<TransactWriteItemsRequest>(),
+                It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
