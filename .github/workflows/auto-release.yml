@@ -1,6 +1,7 @@
 name: Auto-Release & Publish NuGet
 
 on:
+  workflow_dispatch:
   push:
     branches: [master]
     paths:
