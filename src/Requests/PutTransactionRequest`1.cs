@@ -50,6 +50,11 @@ public sealed class PutTransactionRequest<T> : TransactionRequest
             put.ConditionExpression = ConditionExpression;
         }
 
+        if (ReturnValuesOnConditionCheckFailure != null)
+        {
+            put.ReturnValuesOnConditionCheckFailure = ReturnValuesOnConditionCheckFailure;
+        }
+
         return Operation.Put(put);
     }
 }

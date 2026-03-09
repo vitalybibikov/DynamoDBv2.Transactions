@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Requests.Contract;
 using DynamoDBv2.Transactions.Requests.Properties;
@@ -44,6 +45,8 @@ namespace DynamoDBv2.Transactions.Requests.Abstract
         public abstract TransactOperationType Type { get; }
         public Dictionary<string, string> ExpressionAttributeNames { get; set; } = new Dictionary<string, string>(4);
         public Dictionary<string, AttributeValue> ExpressionAttributeValues { get; set; } = new Dictionary<string, AttributeValue>(4);
+
+        public ReturnValuesOnConditionCheckFailure? ReturnValuesOnConditionCheckFailure { get; set; }
 
         public abstract Operation GetOperation();
 
