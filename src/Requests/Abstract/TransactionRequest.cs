@@ -1,4 +1,5 @@
-﻿using Amazon.DynamoDBv2.Model;
+﻿using System.Globalization;
+using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Requests.Contract;
 using DynamoDBv2.Transactions.Requests.Properties;
 
@@ -14,21 +15,21 @@ namespace DynamoDBv2.Transactions.Requests.Abstract
 
         protected virtual void SetVersion<T>(Dictionary<string, AttributeValue> convertedItem, string? propertyName)
         {
-            if (propertyName is not null)
+            if (propertyName is not null && convertedItem.TryGetValue(propertyName, out var versionAttr))
             {
                 string nextValue = "0";
 
-                if (convertedItem[propertyName].NULL == true)
+                if (versionAttr.NULL == true)
                 {
                     convertedItem[propertyName] = new AttributeValue { N = "0" };
                 }
                 else
                 {
-                    var currentValue = long.Parse(convertedItem[propertyName].N);
-                    nextValue = (currentValue + 1).ToString();
+                    var currentValue = long.Parse(versionAttr.N, CultureInfo.InvariantCulture);
+                    nextValue = (currentValue + 1).ToString(CultureInfo.InvariantCulture);
 
                     ExpressionAttributeNames.Add("#Version", propertyName);
-                    ExpressionAttributeValues.Add(":expectedVersion", new AttributeValue { N = currentValue.ToString() });
+                    ExpressionAttributeValues.Add(":expectedVersion", new AttributeValue { N = currentValue.ToString(CultureInfo.InvariantCulture) });
                     ConditionExpression = "#Version = :expectedVersion";
                 }
 

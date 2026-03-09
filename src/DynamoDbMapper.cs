@@ -187,7 +187,7 @@ namespace DynamoDBv2.Transactions
                 {
                     if (value != null && (value is int || value is long || value is decimal))
                     {
-                        attributeMap[attributeName] = new AttributeValue { N = value.ToString() };
+                        attributeMap[attributeName] = new AttributeValue { N = Convert.ToString(value, CultureInfo.InvariantCulture) };
                     }
                     else
                     {

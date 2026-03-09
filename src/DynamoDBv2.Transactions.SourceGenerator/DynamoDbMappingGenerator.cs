@@ -309,7 +309,7 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                         // Nullable numeric type
                         sb.AppendLine($"{indent}                if (versionValue != null && (versionValue is int || versionValue is long || versionValue is decimal))");
                         sb.AppendLine($"{indent}                {{");
-                        sb.AppendLine($"{indent}                    attributeMap[\"{EscapeString(prop.AttributeName)}\"] = new AttributeValue {{ N = versionValue.ToString() }};");
+                        sb.AppendLine($"{indent}                    attributeMap[\"{EscapeString(prop.AttributeName)}\"] = new AttributeValue {{ N = System.Convert.ToString(versionValue, System.Globalization.CultureInfo.InvariantCulture) }};");
                         sb.AppendLine($"{indent}                }}");
                         sb.AppendLine($"{indent}                else if (versionValue == null)");
                         sb.AppendLine($"{indent}                {{");
@@ -319,7 +319,7 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                     else
                     {
                         // Non-nullable numeric type (int, long, decimal)
-                        sb.AppendLine($"{indent}                attributeMap[\"{EscapeString(prop.AttributeName)}\"] = new AttributeValue {{ N = versionValue.ToString() }};");
+                        sb.AppendLine($"{indent}                attributeMap[\"{EscapeString(prop.AttributeName)}\"] = new AttributeValue {{ N = versionValue.ToString(System.Globalization.CultureInfo.InvariantCulture) }};");
                     }
 
                     sb.AppendLine($"{indent}            }}");
