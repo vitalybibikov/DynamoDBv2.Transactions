@@ -25,7 +25,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
             {
                 EntityId = entityId,
                 Status = IntegrationOrderStatus.Shipped,
-                CreatedAt = new DateTimeOffset(2025, 6, 15, 10, 30, 0, TimeSpan.Zero),
+                CreatedAt = new DateTime(2025, 6, 15, 10, 30, 0, DateTimeKind.Utc),
                 Description = "Enum test"
             };
 
@@ -48,7 +48,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
         public async Task WriteAndReadBack_DateTimeOffsetProperty_RoundTrips()
         {
             var entityId = Guid.NewGuid().ToString();
-            var createdAt = new DateTimeOffset(2025, 12, 25, 14, 30, 45, 123, TimeSpan.Zero);
+            var createdAt = new DateTime(2025, 12, 25, 14, 30, 45, 123, DateTimeKind.Utc);
 
             var item = new EnumTestTable
             {
@@ -93,7 +93,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                     {
                         EntityId = entityId,
                         Status = status,
-                        CreatedAt = DateTimeOffset.UtcNow
+                        CreatedAt = DateTime.UtcNow
                     });
                 }
 
@@ -118,7 +118,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 {
                     EntityId = entityId,
                     Status = IntegrationOrderStatus.Pending,
-                    CreatedAt = DateTimeOffset.UtcNow,
+                    CreatedAt = DateTime.UtcNow,
                     Description = "Will be patched"
                 });
             }
@@ -151,7 +151,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 {
                     EntityId = entityId,
                     Status = IntegrationOrderStatus.Confirmed,
-                    CreatedAt = DateTimeOffset.UtcNow
+                    CreatedAt = DateTime.UtcNow
                 });
             }
 
@@ -174,7 +174,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 {
                     EntityId = entityId,
                     Status = IntegrationOrderStatus.Confirmed,
-                    CreatedAt = DateTimeOffset.UtcNow
+                    CreatedAt = DateTime.UtcNow
                 });
             }
 
@@ -199,7 +199,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 {
                     EntityId = entityId,
                     Status = IntegrationOrderStatus.Pending,
-                    CreatedAt = DateTimeOffset.UtcNow
+                    CreatedAt = DateTime.UtcNow
                 });
             }
 
@@ -238,19 +238,19 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 {
                     EntityId = id1,
                     Status = IntegrationOrderStatus.Pending,
-                    CreatedAt = DateTimeOffset.UtcNow
+                    CreatedAt = DateTime.UtcNow
                 });
                 writer.CreateOrUpdate(new EnumTestTable
                 {
                     EntityId = id2,
                     Status = IntegrationOrderStatus.Shipped,
-                    CreatedAt = DateTimeOffset.UtcNow
+                    CreatedAt = DateTime.UtcNow
                 });
                 writer.CreateOrUpdate(new EnumTestTable
                 {
                     EntityId = id3,
                     Status = IntegrationOrderStatus.Delivered,
-                    CreatedAt = DateTimeOffset.UtcNow
+                    CreatedAt = DateTime.UtcNow
                 });
             }
 
