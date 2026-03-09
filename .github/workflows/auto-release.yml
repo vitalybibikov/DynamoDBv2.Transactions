@@ -1,4 +1,4 @@
-name: Auto-Release on AWS SDK Update
+name: Auto-Release & Publish NuGet
 
 on:
   push:
@@ -8,10 +8,20 @@ on:
 
 permissions:
   contents: write
+  packages: write
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
+  NuGetDirectory: ${{github.workspace}}/nupkgs
 
 jobs:
-  check-and-release:
+  detect-version:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.version-check.outputs.changed }}
+      current_version: ${{ steps.version-check.outputs.current_version }}
+      previous_version: ${{ steps.version-check.outputs.previous_version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,50 +31,101 @@ jobs:
       - name: Detect AWS SDK version change
         id: version-check
         run: |
-          # Get current version from csproj
           CURRENT_VERSION=$(grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' src/DynamoDBv2.Transactions.csproj)
           echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
 
-          # Get previous version from the commit before
           PREVIOUS_VERSION=$(git show HEAD~1:src/DynamoDBv2.Transactions.csproj 2>/dev/null | grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' || echo "")
           echo "previous_version=$PREVIOUS_VERSION" >> "$GITHUB_OUTPUT"
 
           if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ] && [ -n "$PREVIOUS_VERSION" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "🔄 AWS SDK version changed: $PREVIOUS_VERSION → $CURRENT_VERSION"
+            echo "AWS SDK version changed: $PREVIOUS_VERSION -> $CURRENT_VERSION"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "ℹ️ No AWS SDK version change detected"
+            echo "No AWS SDK version change detected"
           fi
 
-      - name: Sync library version with AWS SDK version
-        if: steps.version-check.outputs.changed == 'true'
-        run: |
-          VERSION="${{ steps.version-check.outputs.current_version }}"
-          echo "📦 Setting library version to $VERSION"
-
-          # Update Version and AssemblyVersion in the main csproj
-          sed -i "s|<Version>[^<]*</Version>|<Version>$VERSION</Version>|g" src/DynamoDBv2.Transactions.csproj
-          sed -i "s|<AssemblyVersion>[^<]*</AssemblyVersion>|<AssemblyVersion>$VERSION</AssemblyVersion>|g" src/DynamoDBv2.Transactions.csproj
-
-          # Update AWSSDK.DynamoDBv2 references in test projects
-          for csproj in test/*/DynamoDBv2.Transactions.*.csproj; do
-            if [ -f "$csproj" ]; then
-              sed -i "s|<PackageReference Include=\"AWSSDK.DynamoDBv2\" Version=\"[^\"]*\"|<PackageReference Include=\"AWSSDK.DynamoDBv2\" Version=\"$VERSION\"|g" "$csproj"
-              echo "  Updated $csproj"
-            fi
-          done
+  create-release:
+    needs: detect-version
+    if: needs.detect-version.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Create GitHub Release
-        if: steps.version-check.outputs.changed == 'true'
         run: |
-          VERSION="${{ steps.version-check.outputs.current_version }}"
-          PREV="${{ steps.version-check.outputs.previous_version }}"
+          VERSION="${{ needs.detect-version.outputs.current_version }}"
+          PREV="${{ needs.detect-version.outputs.previous_version }}"
           TAG="v$VERSION"
+
+          # Check if tag already exists
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists, skipping"
+            exit 0
+          fi
 
           gh release create "$TAG" \
             --title "v$VERSION" \
-            --notes "Automated release — AWSSDK.DynamoDBv2 updated from $PREV to $VERSION" \
+            --notes "## Changes
+
+          - AWSSDK.DynamoDBv2 updated from $PREV to $VERSION
+          - Library version synced to $VERSION
+
+          Published automatically to [NuGet](https://www.nuget.org/packages/DynamoDBv2.Transactions/$VERSION)." \
             --target master
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-publish:
+    needs: [detect-version, create-release]
+    if: needs.detect-version.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build and Pack
+        run: |
+          VERSION="${{ needs.detect-version.outputs.current_version }}"
+          echo "Building and packing version: $VERSION"
+
+          dotnet build src/DynamoDBv2.Transactions.csproj --configuration Release
+          dotnet pack src/DynamoDBv2.Transactions.csproj --configuration Release \
+            --output ${{ env.NuGetDirectory }} \
+            /p:Version=$VERSION
+
+      - name: Validate NuGet package
+        run: |
+          dotnet tool update Meziantou.Framework.NuGetPackageValidation.Tool --global
+          meziantou.validate-nuget-package $(ls "${{ env.NuGetDirectory }}"/*.nupkg) --excluded-rules Symbols
+
+      - name: Publish to NuGet.org
+        run: |
+          for file in $(find ${{ env.NuGetDirectory }} -name "*.nupkg" -or -name "*.snupkg"); do
+            dotnet nuget push "$file" \
+              --api-key "${{ secrets.NUGET_PUSH_KEY }}" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done
+
+      - name: Publish to GitHub Packages
+        run: |
+          dotnet nuget add source \
+            --username ${{ github.repository_owner }} \
+            --password ${{ secrets.GITHUB_TOKEN }} \
+            --store-password-in-clear-text \
+            --name github \
+            "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+          for file in $(find ${{ env.NuGetDirectory }} -name "*.nupkg" -or -name "*.snupkg"); do
+            dotnet nuget push "$file" \
+              --api-key ${{ secrets.GITHUB_TOKEN }} \
+              --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/" \
+              --skip-duplicate
+          done
