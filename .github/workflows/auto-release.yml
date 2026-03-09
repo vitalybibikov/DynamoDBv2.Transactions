@@ -36,31 +36,67 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Detect version change
         id: version-check
         run: |
-          # Read the library <Version> (source of truth for NuGet version)
-          CURRENT_VERSION=$(grep -oP '(?<=<Version>)[^<]*' src/DynamoDBv2.Transactions.csproj)
-          echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
-
-          # Read AWS SDK version for release notes
+          # Read current state
+          CURRENT_LIB_VERSION=$(grep -oP '(?<=<Version>)[^<]*' src/DynamoDBv2.Transactions.csproj)
           AWS_SDK_VERSION=$(grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' src/DynamoDBv2.Transactions.csproj)
           echo "aws_sdk_version=$AWS_SDK_VERSION" >> "$GITHUB_OUTPUT"
 
-          # Read previous <Version>
-          PREVIOUS_VERSION=$(git show HEAD~1:src/DynamoDBv2.Transactions.csproj 2>/dev/null | grep -oP '(?<=<Version>)[^<]*' || echo "")
-          echo "previous_version=$PREVIOUS_VERSION" >> "$GITHUB_OUTPUT"
+          # Read previous state
+          PREVIOUS_LIB_VERSION=$(git show HEAD~1:src/DynamoDBv2.Transactions.csproj 2>/dev/null | grep -oP '(?<=<Version>)[^<]*' || echo "")
+          PREVIOUS_AWS_SDK=$(git show HEAD~1:src/DynamoDBv2.Transactions.csproj 2>/dev/null | grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' || echo "")
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "Previous lib version: $PREVIOUS_LIB_VERSION, Current: $CURRENT_LIB_VERSION"
+          echo "Previous AWS SDK: $PREVIOUS_AWS_SDK, Current: $AWS_SDK_VERSION"
+
+          # Check if AWS SDK version changed (e.g. Dependabot bump)
+          if [ "$AWS_SDK_VERSION" != "$PREVIOUS_AWS_SDK" ] && [ -n "$PREVIOUS_AWS_SDK" ]; then
+            echo "AWS SDK version changed: $PREVIOUS_AWS_SDK -> $AWS_SDK_VERSION"
+
+            # Compute new library version: {major}.{minor}.{patch}.{rev * 100}
+            IFS='.' read -r AWS_MAJOR AWS_MINOR AWS_PATCH AWS_REV <<< "$AWS_SDK_VERSION"
+            AWS_REV=${AWS_REV:-0}
+            NEW_FOURTH=$((AWS_REV * 100))
+            NEW_VERSION="${AWS_MAJOR}.${AWS_MINOR}.${AWS_PATCH}.${NEW_FOURTH}"
+
+            echo "Auto-computed new library version: $NEW_VERSION"
+
+            # Update <Version> in csproj
+            sed -i "s|<Version>$CURRENT_LIB_VERSION</Version>|<Version>$NEW_VERSION</Version>|" src/DynamoDBv2.Transactions.csproj
+
+            # Commit the version bump
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/DynamoDBv2.Transactions.csproj
+            git commit -m "chore: auto-bump version to $NEW_VERSION (AWS SDK $AWS_SDK_VERSION)"
+            git push
+
+            echo "current_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+            echo "previous_version=$CURRENT_LIB_VERSION" >> "$GITHUB_OUTPUT"
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "Manual dispatch: forcing publish of $CURRENT_VERSION"
-          elif [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ] && [ -n "$PREVIOUS_VERSION" ]; then
+
+          elif [ "$CURRENT_LIB_VERSION" != "$PREVIOUS_LIB_VERSION" ] && [ -n "$PREVIOUS_LIB_VERSION" ]; then
+            # Library version was manually bumped
+            echo "Library version changed: $PREVIOUS_LIB_VERSION -> $CURRENT_LIB_VERSION"
+            echo "current_version=$CURRENT_LIB_VERSION" >> "$GITHUB_OUTPUT"
+            echo "previous_version=$PREVIOUS_LIB_VERSION" >> "$GITHUB_OUTPUT"
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "Version changed: $PREVIOUS_VERSION -> $CURRENT_VERSION (AWS SDK: $AWS_SDK_VERSION)"
+
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual dispatch: forcing publish of $CURRENT_LIB_VERSION"
+            echo "current_version=$CURRENT_LIB_VERSION" >> "$GITHUB_OUTPUT"
+            echo "previous_version=$PREVIOUS_LIB_VERSION" >> "$GITHUB_OUTPUT"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+
           else
+            echo "No version change detected (current: $CURRENT_LIB_VERSION)"
+            echo "current_version=$CURRENT_LIB_VERSION" >> "$GITHUB_OUTPUT"
+            echo "previous_version=$PREVIOUS_LIB_VERSION" >> "$GITHUB_OUTPUT"
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No version change detected (current: $CURRENT_VERSION)"
           fi
 
   create-release:
@@ -70,6 +106,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: master
 
       - name: Create GitHub Release
         run: |
@@ -103,6 +141,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: master
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
