@@ -15,8 +15,8 @@ A high-performance .NET library for Amazon DynamoDB transactions with **compile-
 
 <p align="center">
 
-![Unit Tests](https://img.shields.io/badge/Unit_Tests-259_passed-brightgreen?logo=dotnet&logoColor=white)
-![Integration Tests](https://img.shields.io/badge/Integration_Tests-33_passed-brightgreen?logo=docker&logoColor=white)
+![Unit Tests](https://img.shields.io/badge/Unit_Tests-456_passed-brightgreen?logo=dotnet&logoColor=white)
+![Integration Tests](https://img.shields.io/badge/Integration_Tests-66_passed-brightgreen?logo=docker&logoColor=white)
 ![Source Generator Tests](https://img.shields.io/badge/Source_Generator-16_tests-brightgreen?logo=dotnet&logoColor=white)
 ![Benchmarks](https://img.shields.io/badge/Benchmarks-A%2FB_validated-blue?logo=speedtest&logoColor=white)
 
@@ -182,6 +182,13 @@ Both strategies are transparent — the same `DynamoDbTransactor` API works with
 | **100-Item Validation** | Enforces DynamoDB's transaction limit before sending the request |
 | **TransactionOptions** | `ClientRequestToken` (idempotency), `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics` |
 | **Multi-targeting** | .NET 8.0, .NET 9.0, and .NET 10.0 |
+| **Transactional Reads** | `TransactGetItems` with typed deserialization, projection expressions, and composite key support |
+| **Composite Keys** | Full hash + range key support for all operations: CRUD, condition checks, and transactional reads |
+| **Table Name Prefix** | Global `TableNamePrefix` applied to all resolved table names — perfect for environment-based naming (`dev-`, `qa-`, `prod-`) |
+| **Enum & DateTimeOffset** | Native serialization of enums (as numeric `N`) and `DateTimeOffset` (as ISO string `S`) in both source-gen and reflection paths |
+| **`[DynamoDBIgnore]`** | Properties decorated with `[DynamoDBIgnore]` are excluded from serialization, deserialization, and version checks |
+| **`ReturnValuesOnConditionCheckFailure`** | All request types support `ReturnValuesOnConditionCheckFailure` for debugging failed condition expressions |
+| **Performance Acceptance** | CI-enforced performance gates: source-gen must be at least 1.5x faster than reflection |
 | **Source Link + Deterministic** | Step-into debugging from NuGet, reproducible builds |
 
 ---
@@ -195,7 +202,8 @@ Both strategies are transparent — the same `DynamoDbTransactor` API works with
 | **High-throughput services writing many items per request** | **This library** — up to 100 items per transaction, 3.5x faster for multi-item writes |
 | **Condition checks before writes** | **This library** — type-safe expressions vs raw strings |
 | **Simple single-item CRUD with no transaction needs** | Standard SDK `DynamoDBContext` is fine |
-| **Query / Scan operations** | Standard SDK (this library is write-focused) |
+| **Transactional reads (consistent multi-item get)** | **This library** — typed `TransactGetItems` with projection support |
+| **Query / Scan operations** | Standard SDK |
 | **Full DynamoDB Document model** | Standard SDK |
 
 ### Code Comparison: This Library vs Standard SDK
@@ -262,6 +270,55 @@ var request = new TransactWriteItemsRequest
     }
 };
 await client.TransactWriteItemsAsync(request);
+```
+
+</td>
+</tr>
+<tr>
+<th colspan="2" style="text-align:center">TransactGetItems — Read multiple items atomically</th>
+</tr>
+<tr>
+<td>
+
+```csharp
+// Typed: read order + customer in one call
+var reader = new DynamoDbReadTransactor(client);
+reader.Get<Order>("ORD-001");
+reader.Get<Customer>("CUST-456");
+
+var result = await reader.ExecuteAsync();
+
+var order = result.GetItem<Order>(0);
+var customer = result.GetItem<Customer>(1);
+```
+
+</td>
+<td>
+
+```csharp
+// Manual: build request by hand
+var request = new TransactGetItemsRequest
+{
+    TransactItems = new List<TransactGetItem>
+    {
+        new() { Get = new Get {
+            TableName = "Orders",
+            Key = new Dictionary<string, AttributeValue>
+            {
+                ["PK"] = new() { S = "ORD-001" }
+            }
+        }},
+        new() { Get = new Get {
+            TableName = "Customers",
+            Key = new Dictionary<string, AttributeValue>
+            {
+                ["PK"] = new() { S = "CUST-456" }
+            }
+        }}
+    }
+};
+var response = await client.TransactGetItemsAsync(request);
+// Manual deserialization of each response item...
 ```
 
 </td>
@@ -342,7 +399,7 @@ await using (var transactor = new DynamoDbTransactor(client))
 }
 ```
 
-Available condition methods:
+Available condition methods (all support both single hash key and composite hash+range key):
 - `ConditionEquals<TModel, TValue>` — field must equal value
 - `ConditionNotEquals<TModel, TValue>` — field must not equal value
 - `ConditionGreaterThan<TModel, TValue>` — field must be greater than value
@@ -446,6 +503,165 @@ await using (var transactor = new DynamoDbTransactor(client))
 }
 ```
 
+### Table Name Prefix
+
+Set a global prefix at application startup for environment-based table naming:
+
+```csharp
+// In Program.cs or startup
+DynamoDbMapper.TableNamePrefix = "prod-";
+
+// Now all table name resolutions prepend the prefix:
+// [DynamoDBTable("Orders")] → "prod-Orders"
+// Type name fallback → "prod-MyEntity"
+```
+
+This works with both source-generated and reflection-based mappings. Common patterns:
+
+```csharp
+// Development
+DynamoDbMapper.TableNamePrefix = "dev-";
+
+// Staging
+DynamoDbMapper.TableNamePrefix = "staging-";
+
+// Per-tenant isolation
+DynamoDbMapper.TableNamePrefix = $"tenant-{tenantId}-";
+```
+
+### Composite Key Operations (Hash + Range)
+
+All operations support composite keys. For condition checks, use the overloaded methods:
+
+```csharp
+await using (var transactor = new DynamoDbTransactor(client))
+{
+    // Condition check with composite key
+    transactor.ConditionEquals<OrderItem, string>(
+        "ORD-001",      // hash key
+        "ITEM-001",     // range key
+        x => x.Status, "InStock");
+
+    // Version check with composite key
+    transactor.ConditionVersionEquals<OrderItem>(
+        "ORD-001", "ITEM-001",
+        x => x.Version, 0);
+}
+```
+
+For delete and patch with composite keys, use the request constructors directly:
+
+```csharp
+await using (var transactor = new DynamoDbTransactor(client))
+{
+    // Delete by composite key
+    var deleteReq = new DeleteTransactionRequest<OrderItem>("ORD-001", "ITEM-001");
+    transactor.AddRawRequest(deleteReq);
+
+    // Patch by composite key
+    var patchReq = new PatchTransactionRequest<OrderItem>(
+        "ORD-001", "ITEM-001",
+        new Property { Name = "Status", Value = "Shipped" });
+    transactor.AddRawRequest(patchReq);
+}
+```
+
+Transactional reads also support composite keys:
+
+```csharp
+var reader = new DynamoDbReadTransactor(client);
+reader.Get<OrderItem>("ORD-001", "ITEM-001");
+reader.Get<OrderItem>("ORD-001", "ITEM-002");
+reader.Get<OrderItem>("ORD-001", "ITEM-003", x => new { x.Status }); // with projection
+
+var result = await reader.ExecuteAsync();
+```
+
+### Enum and DateTimeOffset Support
+
+Enums are serialized as DynamoDB `N` (numeric) attributes, and `DateTimeOffset` as ISO 8601 strings:
+
+```csharp
+public enum OrderStatus { Pending, Confirmed, Shipped, Delivered, Cancelled }
+
+[DynamoDBTable("Orders")]
+public partial class Order : ITransactional
+{
+    [DynamoDBHashKey("PK")]
+    public string OrderId { get; set; }
+
+    public OrderStatus Status { get; set; }        // stored as N: "0", "1", "2"...
+    public DateTimeOffset CreatedAt { get; set; }   // stored as S: "2025-06-15T10:30:00.000+00:00"
+    public OrderStatus? NullableStatus { get; set; } // nullable enums supported
+
+    [DynamoDBVersion]
+    public long? Version { get; set; }
+}
+
+// Condition checks work with enums
+await using (var tx = new DynamoDbTransactor(client))
+{
+    tx.ConditionEquals<Order, OrderStatus>("ORD-001", o => o.Status, OrderStatus.Confirmed);
+    tx.PatchAsync<Order, OrderStatus>("ORD-001", o => o.Status, OrderStatus.Shipped);
+}
+```
+
+### `[DynamoDBIgnore]` — Excluding Properties
+
+Mark properties with `[DynamoDBIgnore]` to exclude them from DynamoDB operations:
+
+```csharp
+[DynamoDBTable("Users")]
+public partial class User : ITransactional
+{
+    [DynamoDBHashKey("PK")]
+    public string UserId { get; set; }
+
+    public string Name { get; set; }
+
+    [DynamoDBIgnore]
+    public string ComputedDisplayName => $"{Name} ({UserId})";  // not stored
+
+    [DynamoDBIgnore]
+    public string InternalState { get; set; }  // excluded from serialization
+
+    [DynamoDBVersion]
+    public long? Version { get; set; }
+}
+```
+
+Ignored properties are excluded from `MapToAttributes`, `MapFromAttributes`, and version checks in both source-generated and reflection paths.
+
+### Patching NULL Values
+
+Patch operations support setting properties to `null`:
+
+```csharp
+await using (var tx = new DynamoDbTransactor(client))
+{
+    // Set a property to null (creates a NULL AttributeValue)
+    tx.PatchAsync<Order, string?>("ORD-001", o => o.Notes, null);
+}
+```
+
+### `ReturnValuesOnConditionCheckFailure`
+
+All request types support `ReturnValuesOnConditionCheckFailure` for debugging:
+
+```csharp
+await using (var tx = new DynamoDbTransactor(client))
+{
+    var conditionCheck = new ConditionCheckTransactionRequest<Order>("ORD-001");
+    conditionCheck.Equals<Order, string>(o => o.Status, "Confirmed");
+    conditionCheck.ReturnValuesOnConditionCheckFailure =
+        ReturnValuesOnConditionCheckFailure.ALL_OLD;
+
+    tx.AddRawRequest(conditionCheck);
+}
+```
+
+When a condition check fails, the `TransactionCanceledException` includes the item's attribute values at the time of the failed check, making it easier to diagnose the mismatch.
+
 ### Dependency Injection
 
 Use `ITransactionManager` for testable, DI-friendly code:
@@ -464,6 +680,69 @@ public class OrderService(ITransactionManager transactionManager)
         transactor.CreateOrUpdate(order);
     }
 }
+```
+
+### Transactional Reads (TransactGetItems)
+
+Read multiple items atomically in a single request — items are guaranteed to be a consistent snapshot.
+
+#### Basic Read
+
+```csharp
+var reader = new DynamoDbReadTransactor(client);
+reader.Get<Order>("order-123");
+reader.Get<Customer>("cust-456");
+
+var result = await reader.ExecuteAsync();
+
+var order = result.GetItem<Order>(0);
+var customer = result.GetItem<Customer>(1);
+```
+
+#### With Projection (fetch only specific fields)
+
+```csharp
+var reader = new DynamoDbReadTransactor(client);
+reader.Get<Order>("order-123", x => new { x.Status, x.Total });
+
+var result = await reader.ExecuteAsync();
+var order = result.GetItem<Order>(0); // only Status and Total populated
+```
+
+#### Composite Keys (Hash + Range)
+
+```csharp
+reader.Get<OrderItem>("order-123", "item-001");
+reader.Get<OrderItem>("order-123", "item-002");
+```
+
+#### Raw Access & Consumed Capacity
+
+```csharp
+var reader = new DynamoDbReadTransactor(client);
+reader.Options = new ReadTransactionOptions
+{
+    ReturnConsumedCapacity = ReturnConsumedCapacity.TOTAL
+};
+
+reader.Get<Order>("order-123");
+var result = await reader.ExecuteAsync();
+
+// Raw DynamoDB attributes
+var raw = result.GetRawItem(0);
+
+// All items of a type
+var orders = result.GetItems<Order>();
+
+// Capacity tracking
+var capacity = result.ConsumedCapacity;
+```
+
+#### Dependency Injection
+
+```csharp
+services.AddSingleton<IReadTransactionManager, ReadTransactionManager>();
+services.AddTransient<IDynamoDbReadTransactor, DynamoDbReadTransactor>();
 ```
 
 ---
@@ -502,7 +781,7 @@ For each discovered entity, the generator emits:
 
 - **`__DynamoDbMetadata` nested class** with:
   - `GetPropertyAttributeName(string)` — zero-allocation switch expression
-  - `MapToAttributes(T)` — **inline `AttributeValue` construction** for known types (`string`, `int`, `long`, `decimal`, `float`, `double`, `bool`, `DateTime`, `Guid`, and their nullable variants) — no virtual dispatch, no boxing. Complex types (nested objects, collections, dictionaries) fall back to the runtime converter.
+  - `MapToAttributes(T)` — **inline `AttributeValue` construction** for known types (`string`, `int`, `long`, `decimal`, `float`, `double`, `bool`, `DateTime`, `DateTimeOffset`, `Guid`, `char`, enums, and their nullable variants) — no virtual dispatch, no boxing. Properties marked with `[DynamoDBIgnore]` are excluded. Complex types (nested objects, collections, dictionaries) fall back to the runtime converter.
   - Pre-sized `Dictionary<string, AttributeValue>` with the exact property count known at compile time
   - `GetVersion(T)` — direct property access
 - **`DynamoDbMappingRegistration.g.cs`** — `[ModuleInitializer]` that registers all types at app startup
@@ -570,6 +849,28 @@ Realistic e-commerce order entity with strings, decimals, booleans, DateTimes, n
 
 > The complex entity gap is smaller for `MapToAttribute` because nested objects and collections still go through the runtime converter — the source generator inlines only primitive types. As more of your entity consists of primitive fields, the speedup approaches the 5x+ range.
 
+### Deserialization: MapFromAttributes (15 properties)
+
+Isolated deserialization — converting DynamoDB attribute dictionaries back to typed entities. Source-generated code uses direct property assignment; reflection path uses `Activator.CreateInstance` + per-property `ConvertFromAttributeValue`.
+
+```
+BenchmarkDotNet v0.15.8, Linux Ubuntu 25.10
+Intel Core i7-8700 CPU 3.20GHz (Coffee Lake), .NET 10.0.3, X64 RyuJIT x86-64-v3
+
+IterationCount=20  LaunchCount=3  WarmupCount=5
+```
+
+| Method | Mean | Allocated | vs Reflection |
+|--------|-----:|----------:|--------------:|
+| MapFromAttributes **(source-generated)** | 1,225 ns | 168 B | **5.1x faster, 82% less alloc** |
+| MapFromAttributes (reflection) | 6,261 ns | 952 B | baseline |
+| MapFromAttributes complex **(source-generated)** | 1,109 ns | 216 B | **3.8x faster, 63% less alloc** |
+| MapFromAttributes complex (reflection) | 4,162 ns | 592 B | baseline |
+| RoundTrip serialize+deserialize **(source-gen)** | 3,436 ns | 2,656 B | **5.1x faster, 42% less alloc** |
+| RoundTrip serialize+deserialize (reflection) | 17,483 ns | 4,569 B | baseline |
+
+> Deserialization shows even larger gains than serialization because the source generator eliminates `Activator.CreateInstance`, boxing, and per-property type dispatch entirely.
+
 ### End-to-End: Full Transaction (includes network I/O)
 
 ```
@@ -599,6 +900,8 @@ For primitive types, the generator emits **direct `AttributeValue` construction*
 | `bool` | `new AttributeValue { BOOL = obj.IsActive }` | Boxing → switch → type check |
 | `DateTime` | `new AttributeValue { S = obj.CreatedAt.ToUniversalTime().ToString(...) }` | Boxing → switch → format |
 | `int?`, `DateTime?` etc. | Null check + `.Value` + inline | Boxing → null check → type dispatch |
+| `enum` | `new AttributeValue { N = ((int)obj.Status).ToString(...) }` | Boxing → `Convert.ToInt32` |
+| `DateTimeOffset` | `new AttributeValue { S = obj.CreatedAt.ToUniversalTime().ToString(...) }` | Boxing → switch → format |
 | Nested objects, collections | Falls back to `DynamoDbMapper.GetAttributeValue` | Same |
 
 ### Run Benchmarks Yourself
@@ -609,6 +912,9 @@ dotnet run --project test/DynamoDBv2.Transactions.Benchmarks -c Release -- --fil
 
 # Complex entity benchmarks (19-property entity with nested objects)
 dotnet run --project test/DynamoDBv2.Transactions.Benchmarks -c Release -- --filter '*ComplexEntity*'
+
+# Deserialization benchmarks (source-gen vs reflection MapFromAttributes)
+dotnet run --project test/DynamoDBv2.Transactions.Benchmarks -c Release -- --filter '*DeserializationBenchmark*'
 
 # End-to-end benchmarks (requires localstack)
 dotnet run --project test/DynamoDBv2.Transactions.Benchmarks -c Release -- --filter '*Benchmark*'
@@ -626,7 +932,7 @@ docker-compose up --exit-code-from tests tests localstack
 docker-compose up --exit-code-from unittests unittests
 ```
 
-**Test coverage:** 259 unit tests, 33 integration tests, 16 source generator tests — all validated in CI on every push.
+**Test coverage:** 456 unit tests (including 5 performance acceptance gates), 66 integration tests, 16 source generator tests — all validated in CI on every push.
 
 ---
 

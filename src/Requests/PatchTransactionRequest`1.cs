@@ -46,6 +46,32 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
     }
 
     /// <summary>
+    /// Creates a new <see cref="PatchTransactionRequest{T}"/> instance with composite key.
+    /// </summary>
+    /// <param name="hashKeyValue">Value of the hash key.</param>
+    /// <param name="rangeKeyValue">Value of the range key.</param>
+    /// <param name="value">Property to be patched.</param>
+    public PatchTransactionRequest(string hashKeyValue, string rangeKeyValue, Property value)
+        : base(typeof(T))
+    {
+        var attributeValue = DynamoDbMapper.GetAttributeValue(value.Value!);
+        var propertyName = DynamoDbMapper.GetPropertyAttributedName(ItemType, value.Name!);
+        var hashKeyName = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
+        var rangeKeyName = DynamoDbMapper.GetRangeKeyAttributeName(typeof(T));
+
+        Key = new Dictionary<string, AttributeValue>
+        {
+            { hashKeyName, new AttributeValue { S = hashKeyValue } },
+            { rangeKeyName, new AttributeValue { S = rangeKeyValue } }
+        };
+
+        if (attributeValue != null)
+        {
+            Init(propertyName, attributeValue);
+        }
+    }
+
+    /// <summary>
     /// Creates a new <see cref="PatchTransactionRequest{T}"/> instance. Assuming
     /// that HASH key is marked with <see cref="DynamoDBHashKeyAttribute"/>.
     /// </summary>
@@ -76,7 +102,8 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
 
         if (!attributes.TryGetValue(propertyAttributedName, out var attributeValue))
         {
-            throw new ArgumentException($"Property '{propertyName}' (attribute '{propertyAttributedName}') not found in mapped attributes. The property value may be null.");
+            // Property value is null — MapToAttribute skips nulls, so use explicit NULL
+            attributeValue = new AttributeValue { NULL = true };
         }
 
         Setup(key, keyValue, attributeValue, propertyAttributedName);
@@ -110,6 +137,11 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
             update.UpdateExpression = UpdateExpression;
         }
 
+        if (ReturnValuesOnConditionCheckFailure != null)
+        {
+            update.ReturnValuesOnConditionCheckFailure = ReturnValuesOnConditionCheckFailure;
+        }
+
         return Operation.Patch(update);
     }
 
@@ -122,12 +154,8 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
 
     private void Setup(string keyName, AttributeValue keyValue, AttributeValue? attributeValue, string propertyName)
     {
-        if (attributeValue != null)
-        {
-            var key = new Dictionary<string, AttributeValue> { { keyName, keyValue } };
-
-            Key = key;
-            Init(propertyName, attributeValue);
-        }
+        var key = new Dictionary<string, AttributeValue> { { keyName, keyValue } };
+        Key = key;
+        Init(propertyName, attributeValue ?? new AttributeValue { NULL = true });
     }
 }

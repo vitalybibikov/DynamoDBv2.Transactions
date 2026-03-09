@@ -14,6 +14,7 @@ namespace DynamoDBv2.Transactions;
 public class DynamoDbTransactor : IDynamoDbTransactor
 {
     private readonly ITransactionManager _manager;
+    private bool _disposed = false;
 
     public bool ErrorDuringExecution { get; private set; } = false;
 
@@ -348,6 +349,125 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     }
 
     /// <summary>
+    /// Condition check with composite key (hash + range) for equality.
+    /// </summary>
+    /// <param name="hashKeyValue">The hash key value of the item.</param>
+    /// <param name="rangeKeyValue">The range key value of the item.</param>
+    /// <param name="propertyExpression">An expression indicating the property to apply the condition to.</param>
+    /// <param name="value">The value to compare in the condition.</param>
+    /// <typeparam name="TModel">The type of the model.</typeparam>
+    /// <typeparam name="TValue">The type of the value.</typeparam>
+    public void ConditionEquals<TModel, TValue>(string hashKeyValue, string rangeKeyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    {
+        try
+        {
+            var request = new ConditionCheckTransactionRequest<TModel>(hashKeyValue, rangeKeyValue);
+            request.Equals(propertyExpression, value);
+            AddRawRequest(request);
+        }
+        catch (Exception)
+        {
+            ErrorDuringExecution = true;
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Condition check with composite key (hash + range) for less than.
+    /// </summary>
+    /// <param name="hashKeyValue">The hash key value of the item.</param>
+    /// <param name="rangeKeyValue">The range key value of the item.</param>
+    /// <param name="propertyExpression">An expression indicating the property to apply the condition to.</param>
+    /// <param name="value">The value to compare in the condition.</param>
+    /// <typeparam name="TModel">The type of the model.</typeparam>
+    /// <typeparam name="TValue">The type of the value.</typeparam>
+    public void ConditionLessThan<TModel, TValue>(string hashKeyValue, string rangeKeyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    {
+        try
+        {
+            var request = new ConditionCheckTransactionRequest<TModel>(hashKeyValue, rangeKeyValue);
+            request.LessThan(propertyExpression, value);
+            AddRawRequest(request);
+        }
+        catch (Exception)
+        {
+            ErrorDuringExecution = true;
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Condition check with composite key (hash + range) for greater than.
+    /// </summary>
+    /// <param name="hashKeyValue">The hash key value of the item.</param>
+    /// <param name="rangeKeyValue">The range key value of the item.</param>
+    /// <param name="propertyExpression">An expression indicating the property to apply the condition to.</param>
+    /// <param name="value">The value to compare in the condition.</param>
+    /// <typeparam name="TModel">The type of the model.</typeparam>
+    /// <typeparam name="TValue">The type of the value.</typeparam>
+    public void ConditionGreaterThan<TModel, TValue>(string hashKeyValue, string rangeKeyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    {
+        try
+        {
+            var request = new ConditionCheckTransactionRequest<TModel>(hashKeyValue, rangeKeyValue);
+            request.GreaterThan(propertyExpression, value);
+            AddRawRequest(request);
+        }
+        catch (Exception)
+        {
+            ErrorDuringExecution = true;
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Condition check with composite key (hash + range) for not equals.
+    /// </summary>
+    /// <param name="hashKeyValue">The hash key value of the item.</param>
+    /// <param name="rangeKeyValue">The range key value of the item.</param>
+    /// <param name="propertyExpression">An expression indicating the property to apply the condition to.</param>
+    /// <param name="value">The value to compare in the condition.</param>
+    /// <typeparam name="TModel">The type of the model.</typeparam>
+    /// <typeparam name="TValue">The type of the value.</typeparam>
+    public void ConditionNotEquals<TModel, TValue>(string hashKeyValue, string rangeKeyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value)
+    {
+        try
+        {
+            var request = new ConditionCheckTransactionRequest<TModel>(hashKeyValue, rangeKeyValue);
+            request.NotEquals(propertyExpression, value);
+            AddRawRequest(request);
+        }
+        catch (Exception)
+        {
+            ErrorDuringExecution = true;
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Version check condition with composite key (hash + range).
+    /// </summary>
+    /// <param name="hashKeyValue">The hash key value of the item.</param>
+    /// <param name="rangeKeyValue">The range key value of the item.</param>
+    /// <param name="propertyExpression">An expression indicating the property to apply the version check to.</param>
+    /// <param name="value">The expected version value to check against.</param>
+    /// <typeparam name="TModel">The type of the model.</typeparam>
+    public void ConditionVersionEquals<TModel>(string hashKeyValue, string rangeKeyValue, Expression<Func<TModel, long?>> propertyExpression, long? value)
+    {
+        try
+        {
+            var request = new ConditionCheckTransactionRequest<TModel>(hashKeyValue, rangeKeyValue);
+            request.VersionEquals(propertyExpression, value);
+            AddRawRequest(request);
+        }
+        catch (Exception)
+        {
+            ErrorDuringExecution = true;
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Adds a raw request to the list of transaction requests.
     /// </summary>
     /// <param name="request">The transaction request to add.</param>
@@ -370,6 +490,13 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     /// <returns>A task that represents the asynchronous dispose operation.</returns>
     public async ValueTask DisposeAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
         if (!ErrorDuringExecution)
         {
             await _manager.ExecuteTransactionAsync(Requests, Options, default);
