@@ -512,9 +512,29 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                 "System.DateTimeOffset" =>
                     $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.S != null) result.{propName} = System.DateTimeOffset.Parse(__a_{propName}.S, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None);",
                 _ when prop.IsEnum =>
-                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.N != null) result.{propName} = ({typeName})int.Parse(__a_{propName}.N, System.Globalization.CultureInfo.InvariantCulture);",
-                _ => null
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.N != null) result.{propName} = ({typeName})long.Parse(__a_{propName}.N, System.Globalization.CultureInfo.InvariantCulture);",
+                _ => GenerateFallbackDeserialization(prop)
             };
+        }
+
+        /// <summary>
+        /// Generates a fallback deserialization expression that calls the public
+        /// DynamoDbMapper.ConvertFromAttributeValue for complex types not handled inline.
+        /// </summary>
+        private static string GenerateFallbackDeserialization(PropertyModel prop)
+        {
+            var attrName = EscapeString(prop.AttributeName);
+            var propName = prop.Name;
+            var typeName = prop.TypeFullName;
+
+            // Strip nullable reference type annotation for typeof()
+            var typeForReflection = typeName;
+            if (prop.IsReferenceType && typeForReflection.EndsWith("?"))
+            {
+                typeForReflection = typeForReflection.Substring(0, typeForReflection.Length - 1);
+            }
+
+            return $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName})) {{ var __val = DynamoDbMapper.ConvertFromAttributeValue(__a_{propName}, typeof({typeForReflection})); if (__val != null) result.{propName} = ({typeForReflection})__val; }}";
         }
 
         private static string GenerateRegistration(ImmutableArray<TypeModel> types)
@@ -631,7 +651,7 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                 "System.DateTimeOffset" =>
                     $"new AttributeValue {{ S = {valueAccess}.ToUniversalTime().ToString(\"yyyy-MM-ddTHH:mm:ss.fffzzz\") }}",
                 _ when prop.IsEnum =>
-                    $"new AttributeValue {{ N = ((int){valueAccess}).ToString(System.Globalization.CultureInfo.InvariantCulture) }}",
+                    $"new AttributeValue {{ N = ((long){valueAccess}).ToString(System.Globalization.CultureInfo.InvariantCulture) }}",
                 _ => null
             };
         }
