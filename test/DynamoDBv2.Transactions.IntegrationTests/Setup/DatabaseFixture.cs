@@ -18,6 +18,8 @@ namespace DynamoDBv2.Transactions.IntegrationTests.Setup
         public async Task InitializeAsync()
         {
             await CreateTable();
+            await CreateCompositeKeyTable();
+            await CreateEnumTestTable();
         }
 
         private async Task CreateTable()
@@ -25,13 +27,51 @@ namespace DynamoDBv2.Transactions.IntegrationTests.Setup
             try
             {
                 await Db.Client.CreateTableAsync(
-                    new CreateTableRequest(nameof(TestTable), 
-                        [new(nameof(TestTable.UserId), KeyType.HASH)], 
+                    new CreateTableRequest(nameof(TestTable),
+                        [new(nameof(TestTable.UserId), KeyType.HASH)],
                         [new (nameof(TestTable.UserId), ScalarAttributeType.S)],
                         new ProvisionedThroughput { ReadCapacityUnits = 1, WriteCapacityUnits = 1})
                     );
             }
             catch (Exception e)
+            {
+            }
+        }
+
+        private async Task CreateCompositeKeyTable()
+        {
+            try
+            {
+                await Db.Client.CreateTableAsync(
+                    new CreateTableRequest(nameof(CompositeKeyTestTable),
+                        [
+                            new KeySchemaElement("PK", KeyType.HASH),
+                            new KeySchemaElement("SK", KeyType.RANGE)
+                        ],
+                        [
+                            new AttributeDefinition("PK", ScalarAttributeType.S),
+                            new AttributeDefinition("SK", ScalarAttributeType.S)
+                        ],
+                        new ProvisionedThroughput { ReadCapacityUnits = 1, WriteCapacityUnits = 1 })
+                    );
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private async Task CreateEnumTestTable()
+        {
+            try
+            {
+                await Db.Client.CreateTableAsync(
+                    new CreateTableRequest(nameof(EnumTestTable),
+                        [new KeySchemaElement("EntityId", KeyType.HASH)],
+                        [new AttributeDefinition("EntityId", ScalarAttributeType.S)],
+                        new ProvisionedThroughput { ReadCapacityUnits = 1, WriteCapacityUnits = 1 })
+                    );
+            }
+            catch (Exception)
             {
             }
         }

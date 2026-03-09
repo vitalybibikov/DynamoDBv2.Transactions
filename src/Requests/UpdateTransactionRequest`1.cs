@@ -46,6 +46,11 @@ public sealed class UpdateTransactionRequest<T> : TransactionRequest
             update.UpdateExpression = UpdateExpression;
         }
 
+        if (ReturnValuesOnConditionCheckFailure != null)
+        {
+            update.ReturnValuesOnConditionCheckFailure = ReturnValuesOnConditionCheckFailure;
+        }
+
         return Operation.Update(update);
     }
 }
