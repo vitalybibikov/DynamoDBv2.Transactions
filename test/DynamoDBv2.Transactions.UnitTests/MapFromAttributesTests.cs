@@ -750,4 +750,93 @@ public class MapFromAttributesTests
         var entity = DynamoDbMapper.MapFromAttributes<ProductTestEntity>(attrs);
         Assert.False(entity.InStock);
     }
+
+    // ──────────────────────────────────────────────
+    //  V1 boolean format (N: "1"/"0") compatibility
+    // ──────────────────────────────────────────────
+
+    [Fact]
+    public void MapFromAttributes_BoolTrue_V1NumericFormat_ReflectionFallback()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "v1-bool-true" } },
+            { "BoolValue", new AttributeValue { N = "1" } }
+        };
+
+        var entity = (AllTypesReflectionEntity)DynamoDbMapper.MapFromAttributes(
+            typeof(AllTypesReflectionEntity), attrs);
+        Assert.True(entity.BoolValue);
+    }
+
+    [Fact]
+    public void MapFromAttributes_BoolFalse_V1NumericFormat_ReflectionFallback()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "v1-bool-false" } },
+            { "BoolValue", new AttributeValue { N = "0" } }
+        };
+
+        var entity = (AllTypesReflectionEntity)DynamoDbMapper.MapFromAttributes(
+            typeof(AllTypesReflectionEntity), attrs);
+        Assert.False(entity.BoolValue);
+    }
+
+    [Fact]
+    public void MapFromAttributes_NullableBoolTrue_V1NumericFormat_ReflectionFallback()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "v1-nbool-true" } },
+            { "NullableBool", new AttributeValue { N = "1" } }
+        };
+
+        var entity = (AllTypesReflectionEntity)DynamoDbMapper.MapFromAttributes(
+            typeof(AllTypesReflectionEntity), attrs);
+        Assert.True(entity.NullableBool);
+    }
+
+    [Fact]
+    public void MapFromAttributes_NullableBoolFalse_V1NumericFormat_ReflectionFallback()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "v1-nbool-false" } },
+            { "NullableBool", new AttributeValue { N = "0" } }
+        };
+
+        var entity = (AllTypesReflectionEntity)DynamoDbMapper.MapFromAttributes(
+            typeof(AllTypesReflectionEntity), attrs);
+        Assert.NotNull(entity.NullableBool);
+        Assert.False(entity.NullableBool);
+    }
+
+    [Fact]
+    public void MapFromAttributes_ReflectionFallback_BoolTrue_V1NumericFormat()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "rf-v1-bool" } },
+            { "BoolValue", new AttributeValue { N = "1" } }
+        };
+
+        var entity = (AllTypesReflectionEntity)DynamoDbMapper.MapFromAttributes(
+            typeof(AllTypesReflectionEntity), attrs);
+        Assert.True(entity.BoolValue);
+    }
+
+    [Fact]
+    public void MapFromAttributes_ReflectionFallback_BoolFalse_V1NumericFormat()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "rf-v1-boolfalse" } },
+            { "BoolValue", new AttributeValue { N = "0" } }
+        };
+
+        var entity = (AllTypesReflectionEntity)DynamoDbMapper.MapFromAttributes(
+            typeof(AllTypesReflectionEntity), attrs);
+        Assert.False(entity.BoolValue);
+    }
 }
