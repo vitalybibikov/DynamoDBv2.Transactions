@@ -35,49 +35,52 @@ A high-performance .NET library for Amazon DynamoDB transactions with **compile-
 
 ---
 
-## Why This Library?
+## Why This Library Instead of the Standard AWS SDK?
 
-The standard AWS SDK `DynamoDBContext` makes an implicit `DescribeTable` network call to resolve key schemas at runtime. **DynamoDBv2.Transactions eliminates that entirely** by reading `[DynamoDBHashKey]` attributes directly — and with the **included source generator**, all mapping is resolved at compile time with zero reflection overhead.
+The standard AWS SDK `DynamoDBContext` has fundamental design limitations for transactions:
 
-### Performance at a Glance
+| | **DynamoDBv2.Transactions** | **Standard AWS SDK (`DynamoDBContext`)** |
+|---|---|---|
+| **Transaction model** | Single `TransactWriteItems` call — all operations atomic | No built-in transaction support; manual `TransactWriteItemsRequest` construction |
+| **Key resolution** | Reads `[DynamoDBHashKey]` at compile time (source gen) or from cached reflection | `DescribeTable` **network call per table** on first access |
+| **Mapping** | Source-generated inline `AttributeValue` construction — zero reflection, zero boxing | Runtime reflection + `Document` model conversion |
+| **Versioning** | Automatic `[DynamoDBVersion]` increment with condition expression | Manual version handling |
+| **Condition checks** | Type-safe expressions: `ConditionGreaterThan<Order, decimal>(...)` | Raw string expressions |
+| **Batch efficiency** | Up to 100 items in one request | One `SaveAsync` call per item |
+| **Allocation** | Pre-sized dictionaries, zero-alloc key lookups | Unbounded allocations per operation |
+
+### Performance: This Library vs Standard SDK
 
 <table>
 <tr>
 <td width="50%">
 
-#### Simple Entity (15 properties)
+#### End-to-End Transactions (with network I/O)
 
-| Operation | Source-Gen | Reflection | Speedup |
-|-----------|----------:|-----------:|--------:|
-| `GetTableName` | 13 ns / 0 B | 796 ns / 144 B | **60x** |
-| `MapToAttribute` | 2,452 ns / 2,464 B | 13,056 ns / 3,616 B | **5.3x** |
-| `GetPropertyAttributedName` | 21 ns / 0 B | 59 ns / 0 B | **2.7x** |
-| `GetHashKeyAttributeName` | 16 ns / 0 B | 27 ns / 0 B | **1.7x** |
-| `GetVersion` | 64 ns / 56 B | 106 ns / 56 B | **1.7x** |
+| Scenario | This Library | Standard SDK | Speedup |
+|----------|------------:|-----------:|--------:|
+| 1-item write | **12.0 ms / 81 KB** | 15.8 ms / 84 KB | **1.3x** |
+| 3-item write | **13.4 ms / 115 KB** | 46.4 ms / 251 KB | **3.5x** |
+
+The gap grows with more items because the standard SDK issues **separate `DescribeTable` + write** calls per item, while this library batches everything into a single `TransactWriteItems` request.
 
 </td>
 <td width="50%">
 
-#### Complex Entity (19 props, nested objects, collections)
+#### Mapper: Source-Generated vs Reflection Fallback
 
 | Operation | Source-Gen | Reflection | Speedup |
 |-----------|----------:|-----------:|--------:|
-| `MapToAttribute` | 13,209 ns / 8,144 B | 25,020 ns / 9,361 B | **1.9x** |
-| `GetPropertyAttributedName` | 18 ns / 0 B | 57 ns / 0 B | **3.3x** |
-| `GetVersion` | 53 ns / 56 B | 80 ns / 56 B | **1.5x** |
-
-**End-to-End Transactions (with network I/O):**
-
-| Scenario | This Library | Standard SDK | Speedup |
-|----------|------------:|-----------:|--------:|
-| 1-item transaction | 12.0 ms | 15.8 ms | **1.3x** |
-| 3-item transaction | 13.4 ms | 46.4 ms | **3.5x** |
+| `GetTableName` | 13 ns / 0 B | 796 ns / 144 B | **60x** |
+| `MapToAttribute` (15 props) | 2,452 ns / 2,464 B | 13,056 ns / 3,616 B | **5.3x** |
+| `MapToAttribute` (19 props) | 13,209 ns / 8,144 B | 25,020 ns / 9,361 B | **1.9x** |
+| `GetPropertyAttributedName` | 21 ns / 0 B | 59 ns / 0 B | **2.7x** |
 
 </td>
 </tr>
 </table>
 
-> All key lookups are **zero-allocation** via compile-time switch expressions. The source generator emits **inline `AttributeValue` construction** for known types — no virtual dispatch, no boxing. Just add `partial` to your entity class.
+> **Zero-allocation key lookups** via compile-time switch expressions. **Inline `AttributeValue` construction** for primitives — no virtual dispatch, no boxing. Just add `partial` to your entity class.
 
 ---
 
@@ -180,6 +183,90 @@ Both strategies are transparent — the same `DynamoDbTransactor` API works with
 | **TransactionOptions** | `ClientRequestToken` (idempotency), `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics` |
 | **Multi-targeting** | .NET 8.0, .NET 9.0, and .NET 10.0 |
 | **Source Link + Deterministic** | Step-into debugging from NuGet, reproducible builds |
+
+---
+
+## When to Use This Library vs the Standard SDK
+
+| Use Case | Recommendation |
+|----------|---------------|
+| **Multiple writes that must succeed or fail together** | **This library** — atomic `TransactWriteItems` in one call |
+| **Optimistic concurrency / versioning** | **This library** — automatic `[DynamoDBVersion]` with zero boilerplate |
+| **High-throughput services writing many items per request** | **This library** — up to 100 items per transaction, 3.5x faster for multi-item writes |
+| **Condition checks before writes** | **This library** — type-safe expressions vs raw strings |
+| **Simple single-item CRUD with no transaction needs** | Standard SDK `DynamoDBContext` is fine |
+| **Query / Scan operations** | Standard SDK (this library is write-focused) |
+| **Full DynamoDB Document model** | Standard SDK |
+
+### Code Comparison: This Library vs Standard SDK
+
+<table>
+<tr>
+<th>DynamoDBv2.Transactions</th>
+<th>Standard AWS SDK</th>
+</tr>
+<tr>
+<td>
+
+```csharp
+// Atomic: create order + update inventory
+await using var tx = new DynamoDbTransactor(client);
+
+tx.CreateOrUpdate(new Order
+{
+    OrderId = "ORD-001",
+    Total = 99.99m,
+    Version = null // auto-managed
+});
+
+tx.ConditionGreaterThan<Inventory, int>(
+    "SKU-100", i => i.Quantity, 0);
+
+tx.PatchAsync<Inventory, int>(
+    "SKU-100", i => i.Quantity, newQty);
+// executes on DisposeAsync
+```
+
+</td>
+<td>
+
+```csharp
+// Manual: build request by hand
+var request = new TransactWriteItemsRequest
+{
+    TransactItems = new List<TransactWriteItem>
+    {
+        new() { Put = new Put {
+            TableName = "Orders",
+            Item = new Dictionary<string, AttributeValue>
+            {
+                ["PK"] = new() { S = "ORD-001" },
+                ["Total"] = new() { N = "99.99" },
+                // manual version logic...
+            }
+        }},
+        new() { ConditionCheck = new ConditionCheck {
+            TableName = "Inventory",
+            Key = new() { ["PK"] = new() { S = "SKU-100" } },
+            ConditionExpression = "#qty > :zero",
+            ExpressionAttributeNames = new() { ["#qty"] = "Quantity" },
+            ExpressionAttributeValues = new() { [":zero"] = new() { N = "0" } }
+        }},
+        new() { Update = new Update {
+            TableName = "Inventory",
+            Key = new() { ["PK"] = new() { S = "SKU-100" } },
+            UpdateExpression = "SET #qty = :val",
+            ExpressionAttributeNames = new() { ["#qty"] = "Quantity" },
+            ExpressionAttributeValues = new() { [":val"] = new() { N = newQty.ToString() } }
+        }}
+    }
+};
+await client.TransactWriteItemsAsync(request);
+```
+
+</td>
+</tr>
+</table>
 
 ---
 

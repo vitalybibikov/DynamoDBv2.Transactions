@@ -69,8 +69,15 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
         var propertyAttributedName = DynamoDbMapper.GetPropertyAttributedName(ItemType, propertyName);
         var key = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
 
-        var keyValue = attributes[key];
-        var attributeValue = attributes[propertyAttributedName];
+        if (!attributes.TryGetValue(key, out var keyValue))
+        {
+            throw new ArgumentException($"Hash key '{key}' not found in mapped attributes for type {typeof(T).Name}. Ensure the hash key property is non-null.");
+        }
+
+        if (!attributes.TryGetValue(propertyAttributedName, out var attributeValue))
+        {
+            throw new ArgumentException($"Property '{propertyName}' (attribute '{propertyAttributedName}') not found in mapped attributes. The property value may be null.");
+        }
 
         Setup(key, keyValue, attributeValue, propertyAttributedName);
     }

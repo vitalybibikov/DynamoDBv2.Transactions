@@ -106,15 +106,14 @@ namespace DynamoDBv2.Transactions.Requests
             {
                 propertyName = member.Member.Name;
             }
-
-            if (expression.Body is UnaryExpression unaryMember)
+            else if (expression.Body is UnaryExpression unaryMember && unaryMember.Operand is MemberExpression innerMember)
             {
-                propertyName = ((MemberExpression)unaryMember.Operand).Member.Name;
+                propertyName = innerMember.Member.Name;
             }
 
             if (string.IsNullOrEmpty(propertyName))
             {
-                throw new ArgumentNullException("Property Name not found.");
+                throw new ArgumentException("Could not extract property name from expression.");
             }
 
             propertyName = DynamoDbMapper.GetPropertyAttributedName(ItemType, propertyName!);
