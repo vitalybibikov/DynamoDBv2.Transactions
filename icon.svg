@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4c1d95"/> 
+      <stop offset="100%" stop-color="#1e3a8a"/> 
+    </linearGradient>
+  </defs>
+  
+  <rect x="0" y="0" width="128" height="128" rx="24" fill="url(#bgGrad)" />
+
+  <g stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 44 48 L 44 80 C 44 88 84 88 84 80 L 84 48 Z" fill="#ffffff" fill-opacity="0.15" />
+    <path d="M 44 64 C 44 72 84 72 84 64" fill="none" />
+    <ellipse cx="64" cy="48" rx="20" ry="7" fill="#ffffff" fill-opacity="0.25" />
+  </g>
+
+  <g fill="none" stroke="#ff9900" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 28 64 A 36 36 0 0 1 100 64" />
+    <polyline points="90,54 100,64 110,54" />
+    
+    <path d="M 100 64 A 36 36 0 0 1 28 64" />
+    <polyline points="18,74 28,64 38,74" />
+  </g>
+</svg>
