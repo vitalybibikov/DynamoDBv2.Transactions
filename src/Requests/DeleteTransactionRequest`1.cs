@@ -51,12 +51,12 @@ public sealed class DeleteTransactionRequest<T> : TransactionRequest
             Key = Key
         };
 
-        if (ExpressionAttributeNames.Any())
+        if (ExpressionAttributeNames.Count > 0)
         {
             delete.ExpressionAttributeNames = ExpressionAttributeNames;
         }
 
-        if (ExpressionAttributeValues.Any())
+        if (ExpressionAttributeValues.Count > 0)
         {
             delete.ExpressionAttributeValues = ExpressionAttributeValues;
         }

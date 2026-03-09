@@ -35,12 +35,12 @@ public sealed class PutTransactionRequest<T> : TransactionRequest
             Item = PutRequest.Item
         };
 
-        if (ExpressionAttributeNames.Any())
+        if (ExpressionAttributeNames.Count > 0)
         {
             put.ExpressionAttributeNames = ExpressionAttributeNames;
         }
 
-        if (ExpressionAttributeValues.Any())
+        if (ExpressionAttributeValues.Count > 0)
         {
             put.ExpressionAttributeValues = ExpressionAttributeValues;
         }

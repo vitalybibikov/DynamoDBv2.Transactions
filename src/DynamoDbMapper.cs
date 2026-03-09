@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Reflection;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DataModel;
@@ -14,6 +15,7 @@ namespace DynamoDBv2.Transactions
         private static readonly ConcurrentDictionary<Type, string> HashKeyCache = new();
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> PropertyCache = new();
         private static readonly ConcurrentDictionary<Type, PropertyInfo?> VersionPropertyCache = new();
+        private static readonly ConcurrentDictionary<Type, int> PropertyCountCache = new();
 
         /// <summary>
         /// Registers a source-generated mapping for the specified type.
@@ -49,10 +51,31 @@ namespace DynamoDBv2.Transactions
             return type.Name;
         }
 
+        public static AttributeValue GetAttributeValue(int value) => new() { N = value.ToString(CultureInfo.InvariantCulture) };
+        public static AttributeValue GetAttributeValue(long value) => new() { N = value.ToString(CultureInfo.InvariantCulture) };
+        public static AttributeValue GetAttributeValue(decimal value) => new() { N = value.ToString(CultureInfo.InvariantCulture) };
+        public static AttributeValue GetAttributeValue(float value) => new() { N = value.ToString(CultureInfo.InvariantCulture) };
+        public static AttributeValue GetAttributeValue(double value) => new() { N = value.ToString(CultureInfo.InvariantCulture) };
+        public static AttributeValue GetAttributeValue(string value) => new() { S = value };
+        public static AttributeValue GetAttributeValue(char value) => new() { S = value.ToString() };
+        public static AttributeValue GetAttributeValue(bool value) => new() { BOOL = value };
+        public static AttributeValue GetAttributeValue(DateTime value) => new() { S = value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") };
+
         public static AttributeValue? GetAttributeValue(object value)
         {
-            var attribute = ConvertToAttributeValueV2(value);
-            return attribute;
+            return value switch
+            {
+                string s => GetAttributeValue(s),
+                int i => GetAttributeValue(i),
+                long l => GetAttributeValue(l),
+                decimal d => GetAttributeValue(d),
+                float f => GetAttributeValue(f),
+                double dbl => GetAttributeValue(dbl),
+                bool b => GetAttributeValue(b),
+                char c => GetAttributeValue(c),
+                DateTime dt => GetAttributeValue(dt),
+                _ => ConvertToAttributeValueV2(value),
+            };
         }
 
         public static string GetPropertyAttributedName(Type type, string propertyName)
@@ -134,11 +157,9 @@ namespace DynamoDBv2.Transactions
         {
             conversion ??= DynamoDBEntryConversion.V2;
 
-            var attributeMap = new Dictionary<string, AttributeValue>();
-
             if (obj is null)
             {
-                return attributeMap;
+                return new Dictionary<string, AttributeValue>();
             }
 
             var type = obj.GetType();
@@ -149,6 +170,8 @@ namespace DynamoDBv2.Transactions
             }
 
             var properties = GetCachedProperties(type);
+            var capacity = PropertyCountCache.GetOrAdd(type, static t => t.GetProperties().Length);
+            var attributeMap = new Dictionary<string, AttributeValue>(capacity);
 
             foreach (var property in properties)
             {
@@ -207,8 +230,17 @@ namespace DynamoDBv2.Transactions
             }
 
             var versionProperty = VersionPropertyCache.GetOrAdd(type, static t =>
-                GetCachedProperties(t)
-                    .FirstOrDefault(x => x.GetCustomAttribute<DynamoDBVersionAttribute>() != null));
+            {
+                var props = GetCachedProperties(t);
+                for (var i = 0; i < props.Length; i++)
+                {
+                    if (props[i].GetCustomAttribute<DynamoDBVersionAttribute>() != null)
+                    {
+                        return props[i];
+                    }
+                }
+                return null;
+            });
 
             var value = versionProperty?.GetValue(item, null);
 
@@ -244,7 +276,7 @@ namespace DynamoDBv2.Transactions
                     }
                     return new AttributeValue { B = memoryStream };
                 case decimal or float or double or byte or long or int or short or uint or ulong or ushort or sbyte:
-                    return new AttributeValue { N = Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) };
+                    return new AttributeValue { N = Convert.ToString(value, CultureInfo.InvariantCulture) };
                 case DateTime dateTime:
                     return new AttributeValue { S = dateTime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") };
                 case Guid guid:
@@ -263,59 +295,57 @@ namespace DynamoDBv2.Transactions
                             {
                                 if (IsNumericType(elementType))
                                 {
-                                    return new AttributeValue
+                                    var nsList = new List<string>();
+                                    foreach (object e in enumerable)
                                     {
-                                        NS = enumerable.Cast<object>()
-                                                       .Select(e => Convert.ToString(e, System.Globalization.CultureInfo.InvariantCulture))
-                                                       .ToList()
-                                    };
+                                        nsList.Add(Convert.ToString(e, CultureInfo.InvariantCulture)!);
+                                    }
+                                    return new AttributeValue { NS = nsList };
                                 }
                                 else if (elementType == typeof(string) || elementType == typeof(char) || elementType == typeof(Guid) || elementType == typeof(DateTime))
                                 {
-                                    return new AttributeValue
+                                    var ssList = new List<string>();
+                                    foreach (object e in enumerable)
                                     {
-                                        SS = enumerable.Cast<object>()
-                                                       .Select(e => e is DateTime dt ? dt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") : e.ToString())
-                                                       .ToList()
-                                    };
+                                        ssList.Add(e is DateTime dt ? dt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") : e.ToString()!);
+                                    }
+                                    return new AttributeValue { SS = ssList };
                                 }
                                 else if (elementType == typeof(byte[]) || elementType == typeof(MemoryStream))
                                 {
-                                    return new AttributeValue
+                                    var bsList = new List<MemoryStream>();
+                                    foreach (object e in enumerable)
                                     {
-                                        BS = enumerable.Cast<object>()
-                                                       .Select(e =>
-                                                       {
-                                                           if (e is byte[] b)
-                                                           {
-                                                               return new MemoryStream(b);
-                                                           }
-
-                                                           if (e is MemoryStream ms)
-                                                           {
-                                                               if (ms.Position != 0 && ms.CanSeek)
-                                                               {
-                                                                   ms.Seek(0, SeekOrigin.Begin);
-                                                               }
-
-                                                               return ms;
-                                                           }
-                                                           throw new ArgumentException("Invalid binary element type in HashSet.");
-                                                       })
-                                                       .ToList()
-                                    };
+                                        if (e is byte[] b)
+                                        {
+                                            bsList.Add(new MemoryStream(b));
+                                        }
+                                        else if (e is MemoryStream ms)
+                                        {
+                                            if (ms.Position != 0 && ms.CanSeek)
+                                            {
+                                                ms.Seek(0, SeekOrigin.Begin);
+                                            }
+                                            bsList.Add(ms);
+                                        }
+                                        else
+                                        {
+                                            throw new ArgumentException("Invalid binary element type in HashSet.");
+                                        }
+                                    }
+                                    return new AttributeValue { BS = bsList };
                                 }
                             }
                             throw new ArgumentException($"Unsupported HashSet element type: {elementType}");
                         }
                         else
                         {
-                            return new AttributeValue
+                            var list = new List<AttributeValue>();
+                            foreach (object e in enumerable)
                             {
-                                L = enumerable.Cast<object>()
-                                             .Select(ConvertToAttributeValueV2)
-                                             .ToList()
-                            };
+                                list.Add(ConvertToAttributeValueV2(e));
+                            }
+                            return new AttributeValue { L = list };
                         }
                     }
                 default:
@@ -361,7 +391,7 @@ namespace DynamoDBv2.Transactions
                     }
                     return new AttributeValue { B = memoryStream };
                 case decimal or float or double or byte or long or int or short or uint or ulong or ushort or sbyte:
-                    return new AttributeValue { N = Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) };
+                    return new AttributeValue { N = Convert.ToString(value, CultureInfo.InvariantCulture) };
                 case DateTime dateTime:
                     return new AttributeValue { S = dateTime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") };
                 case Guid guid:
@@ -376,63 +406,63 @@ namespace DynamoDBv2.Transactions
                     {
                         if (elementType == typeof(bool))
                         {
-                            return new AttributeValue
+                            var boolNsList = new List<string>();
+                            foreach (bool b in enumerable)
                             {
-                                NS = enumerable.Cast<bool>()
-                                    .Select(b => b ? "1" : "0")
-                                    .ToList()
-                            };
+                                boolNsList.Add(b ? "1" : "0");
+                            }
+                            return new AttributeValue { NS = boolNsList };
                         }
                         else if (IsNumericType(elementType))
                         {
-                            return new AttributeValue
+                            var nsList = new List<string>();
+                            foreach (object e in enumerable)
                             {
-                                NS = enumerable.Cast<object>()
-                                               .Select(e => Convert.ToString(e, System.Globalization.CultureInfo.InvariantCulture))
-                                               .ToList()
-                            };
+                                nsList.Add(Convert.ToString(e, CultureInfo.InvariantCulture)!);
+                            }
+                            return new AttributeValue { NS = nsList };
                         }
                         else if (IsNumericNullableType(elementType))
                         {
-                            return new AttributeValue
+                            var nullableList = new List<AttributeValue>();
+                            foreach (object e in enumerable)
                             {
-                                L = enumerable.Cast<object>()
-                                    .Select(ConvertToAttributeValueV2)
-                                    .ToList()
-                            };
+                                nullableList.Add(ConvertToAttributeValueV2(e));
+                            }
+                            return new AttributeValue { L = nullableList };
                         }
                         else if (elementType == typeof(string) || elementType == typeof(char) || elementType == typeof(Guid) || elementType == typeof(DateTime))
                         {
-                            return new AttributeValue
+                            var ssList = new List<string>();
+                            foreach (object e in enumerable)
                             {
-                                SS = enumerable.Cast<object>()
-                                               .Select(e => e is DateTime dt ? dt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") : e.ToString())
-                                               .ToList()
-                            };
+                                ssList.Add(e is DateTime dt ? dt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") : e.ToString()!);
+                            }
+                            return new AttributeValue { SS = ssList };
                         }
                         else if (elementType == typeof(byte[]) || elementType == typeof(MemoryStream))
                         {
-                            return new AttributeValue
+                            var bsList = new List<MemoryStream>();
+                            foreach (object e in enumerable)
                             {
-                                BS = enumerable.Cast<object>()
-                                               .Select(e =>
-                                               {
-                                                   if (e is byte[] b)
-                                                   {
-                                                       return new MemoryStream(b);
-                                                   }
-                                                   if (e is MemoryStream ms)
-                                                   {
-                                                       if (ms.Position != 0 && ms.CanSeek)
-                                                       {
-                                                           ms.Seek(0, SeekOrigin.Begin);
-                                                       }
-                                                       return ms;
-                                                   }
-                                                   throw new ArgumentException("Invalid binary element type in collection.");
-                                               })
-                                               .ToList()
-                            };
+                                if (e is byte[] b)
+                                {
+                                    bsList.Add(new MemoryStream(b));
+                                }
+                                else if (e is MemoryStream ms)
+                                {
+                                    if (ms.Position != 0 && ms.CanSeek)
+                                    {
+                                        ms.Seek(0, SeekOrigin.Begin);
+                                    }
+                                    bsList.Add(ms);
+                                }
+                                else
+                                {
+                                    throw new ArgumentException("Invalid binary element type in collection.");
+                                }
+                            }
+                            return new AttributeValue { BS = bsList };
                         }
                     }
                     throw new ArgumentException($"Unsupported collection type: {value.GetType()}");

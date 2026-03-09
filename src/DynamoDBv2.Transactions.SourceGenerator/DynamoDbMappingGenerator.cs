@@ -291,8 +291,8 @@ namespace DynamoDBv2.Transactions.SourceGenerator
             // MapToAttributes
             sb.AppendLine($"{indent}        public static Dictionary<string, AttributeValue> MapToAttributes({type.Name} obj)");
             sb.AppendLine($"{indent}        {{");
-            sb.AppendLine($"{indent}            var attributeMap = new Dictionary<string, AttributeValue>();");
-            sb.AppendLine($"{indent}            if (obj == null) return attributeMap;");
+            sb.AppendLine($"{indent}            if (obj == null) return new Dictionary<string, AttributeValue>();");
+            sb.AppendLine($"{indent}            var attributeMap = new Dictionary<string, AttributeValue>({type.Properties.Count});");
             sb.AppendLine();
 
             foreach (var prop in type.Properties)
@@ -326,27 +326,40 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                 }
                 else
                 {
-                    // Normal property
-                    if (prop.IsReferenceType || prop.NullableAnnotation == NullableAnnotation.Annotated || prop.IsNullableValueType)
+                    // Normal property — emit type-specific inline code when possible
+                    var inlineExpr = GetInlineAttributeValueExpression(prop, "obj");
+
+                    if (inlineExpr != null)
                     {
+                        // Known type: emit direct AttributeValue construction (no virtual dispatch)
+                        if (prop.IsReferenceType || prop.NullableAnnotation == NullableAnnotation.Annotated || prop.IsNullableValueType)
+                        {
+                            sb.AppendLine($"{indent}            if (obj.{prop.Name} != null)");
+                            sb.AppendLine($"{indent}                attributeMap[\"{EscapeString(prop.AttributeName)}\"] = {inlineExpr};");
+                        }
+                        else
+                        {
+                            // Value type, always non-null — no checks needed
+                            sb.AppendLine($"{indent}            attributeMap[\"{EscapeString(prop.AttributeName)}\"] = {inlineExpr};");
+                        }
+                    }
+                    else if (prop.IsReferenceType || prop.NullableAnnotation == NullableAnnotation.Annotated || prop.IsNullableValueType)
+                    {
+                        // Unknown nullable type: fall back to DynamoDbMapper.GetAttributeValue
                         sb.AppendLine($"{indent}            if (obj.{prop.Name} != null)");
                         sb.AppendLine($"{indent}            {{");
                         sb.AppendLine($"{indent}                var __attrVal = DynamoDbMapper.GetAttributeValue(obj.{prop.Name});");
                         sb.AppendLine($"{indent}                if (__attrVal != null)");
-                        sb.AppendLine($"{indent}                {{");
                         sb.AppendLine($"{indent}                    attributeMap[\"{EscapeString(prop.AttributeName)}\"] = __attrVal;");
-                        sb.AppendLine($"{indent}                }}");
                         sb.AppendLine($"{indent}            }}");
                     }
                     else
                     {
-                        // Value type, always non-null
+                        // Unknown non-null value type: fall back
                         sb.AppendLine($"{indent}            {{");
                         sb.AppendLine($"{indent}                var __attrVal = DynamoDbMapper.GetAttributeValue(obj.{prop.Name});");
                         sb.AppendLine($"{indent}                if (__attrVal != null)");
-                        sb.AppendLine($"{indent}                {{");
                         sb.AppendLine($"{indent}                    attributeMap[\"{EscapeString(prop.AttributeName)}\"] = __attrVal;");
-                        sb.AppendLine($"{indent}                }}");
                         sb.AppendLine($"{indent}            }}");
                     }
                 }
@@ -432,6 +445,67 @@ namespace DynamoDBv2.Transactions.SourceGenerator
             sb.AppendLine("}");
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Returns an inline C# expression that constructs an AttributeValue directly
+        /// for known primitive types, or null if the type needs the generic fallback.
+        /// </summary>
+        private static string? GetInlineAttributeValueExpression(PropertyModel prop, string objVar)
+        {
+            // Strip "global::" prefix and Nullable wrapper for matching
+            var typeName = prop.TypeFullName;
+            var isNullable = prop.IsNullableValueType;
+            var innerType = typeName;
+
+            // Handle Nullable<T>: "global::System.DateTime?" → "global::System.DateTime"
+            // or "global::System.Nullable<global::System.Int64>" → "global::System.Int64"
+            if (isNullable)
+            {
+                if (innerType.EndsWith("?"))
+                {
+                    innerType = innerType.Substring(0, innerType.Length - 1);
+                }
+                else if (innerType.Contains("System.Nullable<"))
+                {
+                    var start = innerType.IndexOf('<') + 1;
+                    var end = innerType.LastIndexOf('>');
+                    if (start > 0 && end > start)
+                    {
+                        innerType = innerType.Substring(start, end - start);
+                    }
+                }
+            }
+
+            // Normalize: strip "global::" prefix
+            innerType = innerType.Replace("global::", "");
+            var access = $"{objVar}.{prop.Name}";
+
+            // For nullable value types, use .Value to unwrap
+            var valueAccess = isNullable ? $"{access}.Value" : access;
+
+            return innerType switch
+            {
+                "System.String" or "string" =>
+                    $"new AttributeValue {{ S = {access} }}",
+                "System.Int32" or "int" =>
+                    $"new AttributeValue {{ N = {valueAccess}.ToString(System.Globalization.CultureInfo.InvariantCulture) }}",
+                "System.Int64" or "long" =>
+                    $"new AttributeValue {{ N = {valueAccess}.ToString(System.Globalization.CultureInfo.InvariantCulture) }}",
+                "System.Decimal" or "decimal" =>
+                    $"new AttributeValue {{ N = {valueAccess}.ToString(System.Globalization.CultureInfo.InvariantCulture) }}",
+                "System.Double" or "double" =>
+                    $"new AttributeValue {{ N = {valueAccess}.ToString(System.Globalization.CultureInfo.InvariantCulture) }}",
+                "System.Single" or "float" =>
+                    $"new AttributeValue {{ N = {valueAccess}.ToString(System.Globalization.CultureInfo.InvariantCulture) }}",
+                "System.Boolean" or "bool" =>
+                    $"new AttributeValue {{ BOOL = {valueAccess} }}",
+                "System.DateTime" =>
+                    $"new AttributeValue {{ S = {valueAccess}.ToUniversalTime().ToString(\"yyyy-MM-ddTHH:mm:ss.fffZ\") }}",
+                "System.Guid" =>
+                    $"new AttributeValue {{ S = {valueAccess}.ToString() }}",
+                _ => null
+            };
         }
 
         private static string EscapeString(string value)

@@ -16,11 +16,11 @@ namespace DynamoDBv2.Transactions.Requests.Abstract
         {
             if (propertyName is not null)
             {
-                string nextValue = 0.ToString();
+                string nextValue = "0";
 
                 if (convertedItem[propertyName].NULL == true)
                 {
-                    convertedItem[propertyName] = new AttributeValue { N = 0.ToString() };
+                    convertedItem[propertyName] = new AttributeValue { N = "0" };
                 }
                 else
                 {
@@ -38,11 +38,11 @@ namespace DynamoDBv2.Transactions.Requests.Abstract
 
         public Type ItemType { get; init; }
         public string TableName { get; private set; }
-        public Dictionary<string, AttributeValue> Key { get; set; } = new Dictionary<string, AttributeValue>();
+        public Dictionary<string, AttributeValue> Key { get; set; } = new Dictionary<string, AttributeValue>(2);
         public string? ConditionExpression { get; set; }
         public abstract TransactOperationType Type { get; }
-        public Dictionary<string, string> ExpressionAttributeNames { get; set; } = new Dictionary<string, string>();
-        public Dictionary<string, AttributeValue> ExpressionAttributeValues { get; set; } = new Dictionary<string, AttributeValue>();
+        public Dictionary<string, string> ExpressionAttributeNames { get; set; } = new Dictionary<string, string>(4);
+        public Dictionary<string, AttributeValue> ExpressionAttributeValues { get; set; } = new Dictionary<string, AttributeValue>(4);
 
         public abstract Operation GetOperation();
 
