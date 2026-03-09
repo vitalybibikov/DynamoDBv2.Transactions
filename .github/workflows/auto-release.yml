@@ -38,7 +38,10 @@ jobs:
           PREVIOUS_VERSION=$(git show HEAD~1:src/DynamoDBv2.Transactions.csproj 2>/dev/null | grep -oP '(?<=<PackageReference Include="AWSSDK.DynamoDBv2" Version=")[^"]*' || echo "")
           echo "previous_version=$PREVIOUS_VERSION" >> "$GITHUB_OUTPUT"
 
-          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ] && [ -n "$PREVIOUS_VERSION" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch: forcing publish of $CURRENT_VERSION"
+          elif [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ] && [ -n "$PREVIOUS_VERSION" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
             echo "AWS SDK version changed: $PREVIOUS_VERSION -> $CURRENT_VERSION"
           else
