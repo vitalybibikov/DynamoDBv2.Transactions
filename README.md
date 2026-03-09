@@ -1,6 +1,6 @@
 # DynamoDBv2.Transactions
 
-A high-performance .NET library for Amazon DynamoDB transactions with **compile-time source generation** — up to **82x faster** than reflection-based mapping.
+A high-performance .NET library for Amazon DynamoDB transactions with **compile-time source generation** — up to **60x faster** than reflection-based mapping with **32% fewer allocations**.
 
 <p align="center">
 
@@ -45,33 +45,39 @@ The standard AWS SDK `DynamoDBContext` makes an implicit `DescribeTable` network
 <tr>
 <td width="50%">
 
-#### Mapper: Source-Generated vs Reflection
+#### Simple Entity (15 properties)
 
 | Operation | Source-Gen | Reflection | Speedup |
 |-----------|----------:|-----------:|--------:|
-| `GetTableName` | 13.9 ns / 0 B | 1,135 ns / 144 B | **82x** |
-| `MapToAttribute` (15 props) | 4,049 ns / 3,232 B | 16,412 ns / 4,000 B | **4.1x** |
-| `GetHashKeyAttributeName` | 14.4 ns / 0 B | 30.5 ns / 0 B | **2.1x** |
-| `GetPropertyAttributedName` | 20.7 ns / 0 B | 39.4 ns / 0 B | **1.9x** |
-| `GetVersion` | 144.8 ns / 56 B | 192.5 ns / 56 B | **1.3x** |
+| `GetTableName` | 13 ns / 0 B | 796 ns / 144 B | **60x** |
+| `MapToAttribute` | 2,452 ns / 2,464 B | 13,056 ns / 3,616 B | **5.3x** |
+| `GetPropertyAttributedName` | 21 ns / 0 B | 59 ns / 0 B | **2.7x** |
+| `GetHashKeyAttributeName` | 16 ns / 0 B | 27 ns / 0 B | **1.7x** |
+| `GetVersion` | 64 ns / 56 B | 106 ns / 56 B | **1.7x** |
 
 </td>
 <td width="50%">
 
-#### End-to-End: This Library vs Standard SDK Wrapper
+#### Complex Entity (19 props, nested objects, collections)
+
+| Operation | Source-Gen | Reflection | Speedup |
+|-----------|----------:|-----------:|--------:|
+| `MapToAttribute` | 13,209 ns / 8,144 B | 25,020 ns / 9,361 B | **1.9x** |
+| `GetPropertyAttributedName` | 18 ns / 0 B | 57 ns / 0 B | **3.3x** |
+| `GetVersion` | 53 ns / 56 B | 80 ns / 56 B | **1.5x** |
+
+**End-to-End Transactions (with network I/O):**
 
 | Scenario | This Library | Standard SDK | Speedup |
 |----------|------------:|-----------:|--------:|
-| 1-item transaction | 12.0 ms / 81 KB | 15.8 ms / 84 KB | **1.3x** |
-| 3-item transaction | 13.4 ms / 115 KB | 46.4 ms / 251 KB | **3.5x** |
-
-The standard SDK wrapper issues **separate `DescribeTable` + write** calls per item. This library batches everything into a single `TransactWriteItems` request.
+| 1-item transaction | 12.0 ms | 15.8 ms | **1.3x** |
+| 3-item transaction | 13.4 ms | 46.4 ms | **3.5x** |
 
 </td>
 </tr>
 </table>
 
-> All key lookups are **zero-allocation** via compile-time switch expressions. Just add `partial` to your entity class — no other changes needed.
+> All key lookups are **zero-allocation** via compile-time switch expressions. The source generator emits **inline `AttributeValue` construction** for known types — no virtual dispatch, no boxing. Just add `partial` to your entity class.
 
 ---
 
@@ -154,7 +160,7 @@ public string OrderId        auto-registers at              (single call)
 
 | Strategy | When | Performance | Setup |
 |----------|------|------------|-------|
-| **Source Generator** | Entity class is `partial` | Up to 82x faster, zero allocation | Just add `partial` |
+| **Source Generator** | Entity class is `partial` | Up to 60x faster, inline `AttributeValue` construction | Just add `partial` |
 | **Cached Reflection** | Non-partial classes | Good (warmed caches) | No changes needed |
 
 Both strategies are transparent — the same `DynamoDbTransactor` API works with either. The source generator is automatically discovered at startup via `[ModuleInitializer]`.
@@ -409,16 +415,24 @@ For each discovered entity, the generator emits:
 
 - **`__DynamoDbMetadata` nested class** with:
   - `GetPropertyAttributeName(string)` — zero-allocation switch expression
-  - `MapToAttributes(T)` — compile-time serialization (no `PropertyInfo.GetValue()`)
+  - `MapToAttributes(T)` — **inline `AttributeValue` construction** for known types (`string`, `int`, `long`, `decimal`, `float`, `double`, `bool`, `DateTime`, `Guid`, and their nullable variants) — no virtual dispatch, no boxing. Complex types (nested objects, collections, dictionaries) fall back to the runtime converter.
+  - Pre-sized `Dictionary<string, AttributeValue>` with the exact property count known at compile time
   - `GetVersion(T)` — direct property access
 - **`DynamoDbMappingRegistration.g.cs`** — `[ModuleInitializer]` that registers all types at app startup
+
+**Example of generated code** for a `string` and `decimal` property:
+```csharp
+// Generated — no function call, no boxing, no null check for value types
+attributeMap["CustomerName"] = new AttributeValue { S = obj.CustomerName };
+attributeMap["Total"] = new AttributeValue { N = obj.Total.ToString(CultureInfo.InvariantCulture) };
+```
 
 ### Fallback Behavior
 
 Non-partial classes work seamlessly via cached reflection. You can mix both in the same project:
 
 ```csharp
-// Source-generated (82x faster lookups)
+// Source-generated (60x faster lookups, inline AttributeValue)
 public partial class FastEntity { ... }
 
 // Reflection fallback (still fast with warmed caches)
@@ -429,30 +443,45 @@ public class LegacyEntity { ... }
 
 ## Detailed Benchmark Results
 
-### Mapper: Source-Generated vs Reflection
+### Simple Entity (15 properties)
 
 Isolated mapping operations — no DynamoDB I/O. Entity with 15 properties including all common types.
 Reflection results use warmed-up `ConcurrentDictionary` caches (best-case reflection).
 
 ```
 BenchmarkDotNet v0.15.8, Linux Ubuntu 25.10
-.NET SDK 9.0.311, .NET 9.0.13, X64 RyuJIT x86-64-v3
+Intel Core i7-8700 CPU 3.20GHz (Coffee Lake), .NET 10.0.3, X64 RyuJIT x86-64-v3
 
-Runtime=.NET 9.0  IterationCount=20  LaunchCount=3  WarmupCount=5
+IterationCount=20  LaunchCount=3  WarmupCount=5
 ```
 
 | Method | Mean | Allocated | vs Reflection |
 |--------|-----:|----------:|--------------:|
-| MapToAttribute **(source-generated)** | 4,048.56 ns | 3,232 B | **4.1x faster** |
-| MapToAttribute (reflection) | 16,412.42 ns | 4,000 B | baseline |
-| GetPropertyAttributedName **(source-gen)** | 20.74 ns | 0 B | **1.9x faster** |
-| GetPropertyAttributedName (reflection) | 39.38 ns | 0 B | baseline |
-| GetHashKeyAttributeName **(source-gen)** | 14.43 ns | 0 B | **2.1x faster** |
-| GetHashKeyAttributeName (reflection) | 30.49 ns | 0 B | baseline |
-| GetVersion **(source-generated)** | 144.75 ns | 56 B | **1.3x faster** |
-| GetVersion (reflection) | 192.52 ns | 56 B | baseline |
-| GetTableName **(source-generated)** | 13.87 ns | 0 B | **82x faster** |
-| GetTableName (reflection) | 1,135.12 ns | 144 B | baseline |
+| MapToAttribute **(source-generated)** | 2,452 ns | 2,464 B | **5.3x faster, 32% less alloc** |
+| MapToAttribute (reflection) | 13,056 ns | 3,616 B | baseline |
+| GetPropertyAttributedName **(source-gen)** | 21 ns | 0 B | **2.7x faster** |
+| GetPropertyAttributedName (reflection) | 59 ns | 0 B | baseline |
+| GetHashKeyAttributeName **(source-gen)** | 16 ns | 0 B | **1.7x faster** |
+| GetHashKeyAttributeName (reflection) | 27 ns | 0 B | baseline |
+| GetVersion **(source-generated)** | 64 ns | 56 B | **1.7x faster** |
+| GetVersion (reflection) | 106 ns | 56 B | baseline |
+| GetTableName **(source-generated)** | 13 ns | 0 B | **60x faster** |
+| GetTableName (reflection) | 796 ns | 144 B | baseline |
+
+### Complex Entity (19 properties, nested objects, collections)
+
+Realistic e-commerce order entity with strings, decimals, booleans, DateTimes, nested Address object, List\<OrderItem\>, and Dictionary\<string, string\>.
+
+| Method | Mean | Allocated | vs Reflection |
+|--------|-----:|----------:|--------------:|
+| MapToAttribute **(source-generated)** | 13,209 ns | 8,144 B | **1.9x faster, 13% less alloc** |
+| MapToAttribute (reflection) | 25,020 ns | 9,361 B | baseline |
+| GetPropertyAttributedName **(source-gen)** | 18 ns | 0 B | **3.3x faster** |
+| GetPropertyAttributedName (reflection) | 57 ns | 0 B | baseline |
+| GetVersion **(source-generated)** | 53 ns | 56 B | **1.5x faster** |
+| GetVersion (reflection) | 80 ns | 56 B | baseline |
+
+> The complex entity gap is smaller for `MapToAttribute` because nested objects and collections still go through the runtime converter — the source generator inlines only primitive types. As more of your entity consists of primitive fields, the speedup approaches the 5x+ range.
 
 ### End-to-End: Full Transaction (includes network I/O)
 
@@ -472,11 +501,27 @@ Job=OutOfProc  IterationCount=15  LaunchCount=3  WarmupCount=10
 
 > The 3-item gap is dramatic because the standard SDK issues separate `DescribeTable` + write calls per item, while this library sends a single `TransactWriteItems` request.
 
+### What the Source Generator Optimizes
+
+For primitive types, the generator emits **direct `AttributeValue` construction** — no method calls, no boxing, no virtual dispatch:
+
+| Property Type | Generated Code | Reflection Path |
+|---------------|---------------|-----------------|
+| `string` | `new AttributeValue { S = obj.Name }` | `GetAttributeValue(object)` → switch → `ConvertToAttributeValueV2` |
+| `int`, `long`, `decimal` | `new AttributeValue { N = obj.Total.ToString(InvariantCulture) }` | Boxing → switch → `Convert.ToString` |
+| `bool` | `new AttributeValue { BOOL = obj.IsActive }` | Boxing → switch → type check |
+| `DateTime` | `new AttributeValue { S = obj.CreatedAt.ToUniversalTime().ToString(...) }` | Boxing → switch → format |
+| `int?`, `DateTime?` etc. | Null check + `.Value` + inline | Boxing → null check → type dispatch |
+| Nested objects, collections | Falls back to `DynamoDbMapper.GetAttributeValue` | Same |
+
 ### Run Benchmarks Yourself
 
 ```bash
-# Mapper benchmarks (source-gen vs reflection)
+# Simple entity benchmarks (source-gen vs reflection)
 dotnet run --project test/DynamoDBv2.Transactions.Benchmarks -c Release -- --filter '*MapperBenchmark*'
+
+# Complex entity benchmarks (19-property entity with nested objects)
+dotnet run --project test/DynamoDBv2.Transactions.Benchmarks -c Release -- --filter '*ComplexEntity*'
 
 # End-to-end benchmarks (requires localstack)
 dotnet run --project test/DynamoDBv2.Transactions.Benchmarks -c Release -- --filter '*Benchmark*'
