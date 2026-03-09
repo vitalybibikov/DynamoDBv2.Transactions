@@ -61,6 +61,60 @@ namespace DynamoDBv2.Transactions.Contracts
         public void DeleteAsync<TModel, TKeyValue>(Expression<Func<TModel, string>> propertyNameExpression, string keyValue);
 
         /// <summary>
+        /// Condition check with composite key (hash + range) for equality.
+        /// </summary>
+        /// <param name="hashKeyValue">The hash key value of the item.</param>
+        /// <param name="rangeKeyValue">The range key value of the item.</param>
+        /// <param name="propertyExpression">An expression indicating the property to apply the condition to.</param>
+        /// <param name="value">The value to compare in the condition.</param>
+        /// <typeparam name="TModel">The type of the model.</typeparam>
+        /// <typeparam name="TValue">The type of the value.</typeparam>
+        public void ConditionEquals<TModel, TValue>(string hashKeyValue, string rangeKeyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value);
+
+        /// <summary>
+        /// Condition check with composite key (hash + range) for less than.
+        /// </summary>
+        /// <param name="hashKeyValue">The hash key value of the item.</param>
+        /// <param name="rangeKeyValue">The range key value of the item.</param>
+        /// <param name="propertyExpression">An expression indicating the property to apply the condition to.</param>
+        /// <param name="value">The value to compare in the condition.</param>
+        /// <typeparam name="TModel">The type of the model.</typeparam>
+        /// <typeparam name="TValue">The type of the value.</typeparam>
+        public void ConditionLessThan<TModel, TValue>(string hashKeyValue, string rangeKeyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value);
+
+        /// <summary>
+        /// Condition check with composite key (hash + range) for greater than.
+        /// </summary>
+        /// <param name="hashKeyValue">The hash key value of the item.</param>
+        /// <param name="rangeKeyValue">The range key value of the item.</param>
+        /// <param name="propertyExpression">An expression indicating the property to apply the condition to.</param>
+        /// <param name="value">The value to compare in the condition.</param>
+        /// <typeparam name="TModel">The type of the model.</typeparam>
+        /// <typeparam name="TValue">The type of the value.</typeparam>
+        public void ConditionGreaterThan<TModel, TValue>(string hashKeyValue, string rangeKeyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value);
+
+        /// <summary>
+        /// Condition check with composite key (hash + range) for not equals.
+        /// </summary>
+        /// <param name="hashKeyValue">The hash key value of the item.</param>
+        /// <param name="rangeKeyValue">The range key value of the item.</param>
+        /// <param name="propertyExpression">An expression indicating the property to apply the condition to.</param>
+        /// <param name="value">The value to compare in the condition.</param>
+        /// <typeparam name="TModel">The type of the model.</typeparam>
+        /// <typeparam name="TValue">The type of the value.</typeparam>
+        public void ConditionNotEquals<TModel, TValue>(string hashKeyValue, string rangeKeyValue, Expression<Func<TModel, TValue>> propertyExpression, TValue value);
+
+        /// <summary>
+        /// Version check condition with composite key (hash + range).
+        /// </summary>
+        /// <param name="hashKeyValue">The hash key value of the item.</param>
+        /// <param name="rangeKeyValue">The range key value of the item.</param>
+        /// <param name="propertyExpression">An expression indicating the property to apply the version check to.</param>
+        /// <param name="value">The expected version value to check against.</param>
+        /// <typeparam name="TModel">The type of the model.</typeparam>
+        public void ConditionVersionEquals<TModel>(string hashKeyValue, string rangeKeyValue, Expression<Func<TModel, long?>> propertyExpression, long? value);
+
+        /// <summary>
         /// Adds a raw request of type <see cref="ITransactionRequest"/> to the transaction.
         /// </summary>
         /// <param name="request">Raw request operation to DynamoDB </param>

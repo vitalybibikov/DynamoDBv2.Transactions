@@ -24,7 +24,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             var operation = request.GetOperation();
             var expression = operation.ConditionCheckType!.ConditionExpression;
 
-            Assert.Equal("#Status = :StatusValue", expression);
+            Assert.Equal("#p0 = :v0", expression);
         }
 
         [Fact]
@@ -38,9 +38,9 @@ namespace DynamoDBv2.Transactions.UnitTests
             var operation = request.GetOperation();
             var expression = operation.ConditionCheckType!.ConditionExpression;
 
-            // Before fix: expression would contain duplicated conditions
-            // After fix: clean concatenation with AND separator, trailing AND trimmed
-            Assert.Equal("#Status = :StatusValue AND #Amount = :AmountValue", expression);
+            // Before fix: expression would contain duplicated conditions when same-named properties used
+            // After fix: numbered tokens ensure uniqueness
+            Assert.Equal("#p0 = :v0 AND #p1 = :v1", expression);
         }
 
         [Fact]
@@ -56,8 +56,9 @@ namespace DynamoDBv2.Transactions.UnitTests
             var expression = operation.ConditionCheckType!.ConditionExpression;
 
             // Should have exactly 3 conditions joined by AND, no trailing AND
-            Assert.Contains("#Status = :StatusValue", expression);
-            Assert.Contains("#Amount > :AmountValue", expression);
+            Assert.Contains("#p0 = :v0", expression);
+            Assert.Contains("#p1 > :v1", expression);
+            Assert.Contains("#p2 < :v2", expression);
             Assert.DoesNotContain("AND AND", expression);
             Assert.False(expression!.EndsWith("AND "));
             Assert.False(expression.EndsWith("AND"));
@@ -81,7 +82,9 @@ namespace DynamoDBv2.Transactions.UnitTests
             var expression = operation.ConditionCheckType!.ConditionExpression;
 
             // Expression should be clean - just the condition, no trailing AND
-            Assert.Equal("#MyId = :MyIdValue", expression);
+            Assert.Equal("#p0 = :v0", expression);
+            // The name token should map to "MyId" (the attributed name)
+            Assert.Equal("MyId", operation.ConditionCheckType.ExpressionAttributeNames["#p0"]);
         }
 
         [Fact]
@@ -95,7 +98,7 @@ namespace DynamoDBv2.Transactions.UnitTests
             var expression = operation.ConditionCheckType!.ConditionExpression;
 
             Assert.DoesNotContain(" AND", expression);
-            Assert.Equal("#Status <> :StatusValue", expression);
+            Assert.Equal("#p0 <> :v0", expression);
         }
 
         #endregion

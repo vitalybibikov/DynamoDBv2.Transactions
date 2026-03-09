@@ -54,10 +54,30 @@ public sealed class TransactionManager(IAmazonDynamoDB client)
         }
 #endif
         var transactWriteItems = new List<TransactWriteItem>(initialCapacity);
+        var seenKeys = new HashSet<string>(initialCapacity);
 
         foreach (var transactionRequest in requests)
         {
-            var request = (TransactionRequest)transactionRequest;
+            if (transactionRequest is not TransactionRequest request)
+            {
+                throw new ArgumentException(
+                    $"All transaction requests must inherit from {nameof(TransactionRequest)}. Got: {transactionRequest.GetType().FullName}",
+                    nameof(requests));
+            }
+
+            // Validate no duplicate items (same table + key)
+            // Only check when the Key dictionary is populated (Put/Update store keys differently)
+            if (request.Key.Count > 0)
+            {
+                var keyStr = request.TableName + "|" + string.Join("|", request.Key.OrderBy(k => k.Key).Select(k => k.Key + "=" + (k.Value.S ?? k.Value.N ?? "NULL")));
+                if (!seenKeys.Add(keyStr))
+                {
+                    throw new ArgumentException(
+                        $"DynamoDB transactions cannot contain multiple operations on the same item. Duplicate key on table '{request.TableName}'.",
+                        nameof(requests));
+                }
+            }
+
             var item = new TransactWriteItem();
 
             switch (request.Type)
@@ -94,6 +114,11 @@ public sealed class TransactionManager(IAmazonDynamoDB client)
             throw new ArgumentException(
                 $"DynamoDB transactions support a maximum of {MaxTransactionItems} items, but {transactWriteItems.Count} were provided.",
                 nameof(requests));
+        }
+
+        if (transactWriteItems.Count == 0)
+        {
+            return null;
         }
 
         var transactionWriteRequest = new TransactWriteItemsRequest { TransactItems = transactWriteItems };
