@@ -1,5 +1,4 @@
-﻿using Amazon.DynamoDBv2;
-using DynamoDBv2.Transactions.IntegrationTests.Helpers;
+﻿using DynamoDBv2.Transactions.IntegrationTests.Helpers;
 using DynamoDBv2.Transactions.IntegrationTests.Models;
 using DynamoDBv2.Transactions.IntegrationTests.Setup;
 using Xunit;
@@ -119,8 +118,8 @@ namespace DynamoDBv2.Transactions.IntegrationTests
                 SomeInt = 123
             };
 
-            // Assert and Act
-            await Assert.ThrowsAsync<AmazonDynamoDBException>(async () =>
+            // Assert and Act — duplicate detection now catches this client-side
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
                 await using var dbTransactor = new DynamoDbTransactor(_fixture.Db.Client);
                 dbTransactor.CreateOrUpdate(t1);

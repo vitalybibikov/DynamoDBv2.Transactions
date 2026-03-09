@@ -69,7 +69,7 @@ public sealed class TransactionManager(IAmazonDynamoDB client)
             // Only check when the Key dictionary is populated (Put/Update store keys differently)
             if (request.Key.Count > 0)
             {
-                var keyStr = request.TableName + "|" + string.Join("|", request.Key.OrderBy(k => k.Key).Select(k => k.Key + "=" + (k.Value.S ?? k.Value.N ?? "NULL")));
+                var keyStr = request.TableName + "|" + string.Join("|", request.Key.OrderBy(k => k.Key).Select(k => k.Key + "=" + (k.Value.S ?? k.Value.N ?? (k.Value.B != null ? Convert.ToBase64String(k.Value.B.ToArray()) : "NULL"))));
                 if (!seenKeys.Add(keyStr))
                 {
                     throw new ArgumentException(

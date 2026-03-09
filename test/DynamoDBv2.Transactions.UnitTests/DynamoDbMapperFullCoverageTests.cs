@@ -26,19 +26,19 @@ namespace DynamoDBv2.Transactions.UnitTests
         }
 
         [Fact]
-        public void V1_EmptyStringArray_ShouldReturnEmptySS()
+        public void V1_EmptyStringArray_ShouldReturnNull()
         {
             var value = Array.Empty<string>();
             var result = InvokeV1(value);
-            Assert.Empty(result.SS);
+            Assert.True(result.NULL);
         }
 
         [Fact]
-        public void V1_EmptyNumericArray_ShouldReturnEmptyNS()
+        public void V1_EmptyNumericArray_ShouldReturnNull()
         {
             var value = Array.Empty<int>();
             var result = InvokeV1(value);
-            Assert.Empty(result.NS);
+            Assert.True(result.NULL);
         }
 
         [Fact]
@@ -80,11 +80,11 @@ namespace DynamoDBv2.Transactions.UnitTests
         }
 
         [Fact]
-        public void V1_EmptyHashSet_ShouldBeEmptySet()
+        public void V1_EmptyHashSet_ShouldReturnNull()
         {
             var value = new HashSet<int>();
             var result = InvokeV1(value);
-            Assert.Empty(result.NS);
+            Assert.True(result.NULL);
         }
 
         [Fact]

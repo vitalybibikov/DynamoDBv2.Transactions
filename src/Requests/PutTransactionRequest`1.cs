@@ -1,4 +1,4 @@
-﻿using Amazon.DynamoDBv2.Model;
+using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Requests.Abstract;
 
 namespace DynamoDBv2.Transactions.Requests;
@@ -25,6 +25,9 @@ public sealed class PutTransactionRequest<T> : TransactionRequest
 
         SetVersion<T>(convertedItem, propertyName);
         PutRequest = new PutItemRequest(TableName, convertedItem);
+
+        // Populate Key for duplicate detection in TransactionManager (best-effort)
+        PopulateKeyForDuplicateDetection(convertedItem);
     }
 
     public override Operation GetOperation()
@@ -56,5 +59,27 @@ public sealed class PutTransactionRequest<T> : TransactionRequest
         }
 
         return Operation.Put(put);
+    }
+
+    private void PopulateKeyForDuplicateDetection(Dictionary<string, AttributeValue> convertedItem)
+    {
+        try
+        {
+            var hashKeyName = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
+            if (convertedItem.TryGetValue(hashKeyName, out var hashKeyAttr))
+            {
+                Key[hashKeyName] = hashKeyAttr;
+            }
+
+            var rangeKeyName = DynamoDbMapper.TryGetRangeKeyAttributeName(typeof(T));
+            if (rangeKeyName != null && convertedItem.TryGetValue(rangeKeyName, out var rangeKeyAttr))
+            {
+                Key[rangeKeyName] = rangeKeyAttr;
+            }
+        }
+        catch (ArgumentException)
+        {
+            // Type doesn't have DynamoDB key attributes — skip key extraction
+        }
     }
 }
