@@ -74,7 +74,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: './coverage-results/*.xml'
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Clean up

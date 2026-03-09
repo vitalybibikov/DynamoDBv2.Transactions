@@ -19,6 +19,7 @@ namespace DynamoDBv2.Transactions.SourceGenerator
         private const string DynamoDBRangeKeyAttr = "DynamoDBRangeKeyAttribute";
         private const string DynamoDBPropertyAttr = "DynamoDBPropertyAttribute";
         private const string DynamoDBVersionAttr = "DynamoDBVersionAttribute";
+        private const string DynamoDBIgnoreAttr = "DynamoDBIgnoreAttribute";
         private const string DynamoDBTableAttr = "DynamoDBTableAttribute";
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -118,7 +119,9 @@ namespace DynamoDBv2.Transactions.SourceGenerator
 
             var properties = new List<PropertyModel>();
             string? hashKeyAttributeName = null;
+            string? rangeKeyAttributeName = null;
             string? versionPropertyName = null;
+            string? versionAttributeName = null;
             string? versionPropertyType = null;
             bool versionIsNullable = false;
 
@@ -143,6 +146,7 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                 bool isHashKey = false;
                 bool isRangeKey = false;
                 bool isVersion = false;
+                bool isIgnored = false;
 
                 foreach (var attr in prop.GetAttributes())
                 {
@@ -167,6 +171,8 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                         {
                             attrName = customName;
                         }
+
+                        rangeKeyAttributeName = attrName;
                     }
                     else if (className == DynamoDBPropertyAttr)
                     {
@@ -179,11 +185,24 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                     else if (className == DynamoDBVersionAttr)
                     {
                         isVersion = true;
-                        versionPropertyName = prop.Name;
                         versionPropertyType = prop.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                         versionIsNullable = prop.Type.NullableAnnotation == NullableAnnotation.Annotated
                             || (prop.Type is INamedTypeSymbol nts && nts.ConstructedFrom.SpecialType == SpecialType.System_Nullable_T);
                     }
+                    else if (className == DynamoDBIgnoreAttr)
+                    {
+                        isIgnored = true;
+                    }
+                }
+
+                if (isIgnored) continue;
+
+                // Capture version info AFTER all attributes are processed
+                // so attrName reflects [DynamoDBProperty(AttributeName = "...")] if present
+                if (isVersion)
+                {
+                    versionPropertyName = prop.Name;
+                    versionAttributeName = attrName;
                 }
 
                 properties.Add(new PropertyModel
@@ -197,8 +216,14 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                     IsNullableValueType = prop.Type is INamedTypeSymbol nt
                         && nt.ConstructedFrom.SpecialType == SpecialType.System_Nullable_T,
                     IsReferenceType = prop.Type.IsReferenceType,
+                    IsEnum = prop.Type is INamedTypeSymbol nts2 && nts2.EnumUnderlyingType != null,
                     NullableAnnotation = prop.Type.NullableAnnotation
                 });
+            }
+
+            if (hashKeyAttributeName == null)
+            {
+                return null; // Skip types without [DynamoDBHashKey] — they cannot be mapped
             }
 
             return new TypeModel
@@ -207,9 +232,11 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                 Namespace = ns,
                 FullyQualifiedName = symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                 TableName = tableName,
-                HashKeyAttributeName = hashKeyAttributeName ?? symbol.Name,
+                HashKeyAttributeName = hashKeyAttributeName!,
+                RangeKeyAttributeName = rangeKeyAttributeName,
                 Properties = properties,
                 VersionPropertyName = versionPropertyName,
+                VersionAttributeName = versionAttributeName,
                 VersionPropertyType = versionPropertyType,
                 VersionIsNullable = versionIsNullable
             };
@@ -272,6 +299,17 @@ namespace DynamoDBv2.Transactions.SourceGenerator
 
             // HashKeyAttributeName
             sb.AppendLine($"{indent}        public const string HashKeyAttributeName = \"{EscapeString(type.HashKeyAttributeName)}\";");
+            sb.AppendLine();
+
+            // RangeKeyAttributeName
+            if (type.RangeKeyAttributeName != null)
+            {
+                sb.AppendLine($"{indent}        public const string? RangeKeyAttributeName = \"{EscapeString(type.RangeKeyAttributeName)}\";");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}        public const string? RangeKeyAttributeName = null;");
+            }
             sb.AppendLine();
 
             // GetPropertyAttributeName
@@ -376,12 +414,35 @@ namespace DynamoDBv2.Transactions.SourceGenerator
             if (type.VersionPropertyName != null)
             {
                 sb.AppendLine($"{indent}            if (item == null) return (null, null);");
-                sb.AppendLine($"{indent}            return (\"{EscapeString(type.VersionPropertyName)}\", item.{type.VersionPropertyName});");
+                sb.AppendLine($"{indent}            return (\"{EscapeString(type.VersionAttributeName ?? type.VersionPropertyName)}\", item.{type.VersionPropertyName});");
             }
             else
             {
                 sb.AppendLine($"{indent}            return (null, null);");
             }
+            sb.AppendLine($"{indent}        }}");
+            sb.AppendLine();
+
+            // MapFromAttributes (deserialization)
+            sb.AppendLine($"{indent}        public static {type.Name} MapFromAttributes(Dictionary<string, AttributeValue> attributes)");
+            sb.AppendLine($"{indent}        {{");
+            sb.AppendLine($"{indent}            var result = new {type.Name}();");
+
+            foreach (var prop in type.Properties)
+            {
+                var deserExpr = GetInlineDeserializeExpression(prop);
+                if (deserExpr != null)
+                {
+                    sb.AppendLine($"{indent}            {deserExpr}");
+                }
+                else
+                {
+                    // Fallback: skip complex types in generated code — they'll use reflection
+                    sb.AppendLine($"{indent}            // {prop.Name}: complex type, skipped in generated deserialization");
+                }
+            }
+
+            sb.AppendLine($"{indent}            return result;");
             sb.AppendLine($"{indent}        }}");
 
             sb.AppendLine($"{indent}    }}");
@@ -393,6 +454,67 @@ namespace DynamoDBv2.Transactions.SourceGenerator
             }
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Returns a C# statement that deserializes a single DynamoDB attribute into the result property,
+        /// or null if the type is too complex for inline deserialization.
+        /// </summary>
+        private static string? GetInlineDeserializeExpression(PropertyModel prop)
+        {
+            var typeName = prop.TypeFullName;
+            var isNullable = prop.IsNullableValueType;
+            var innerType = typeName;
+
+            if (isNullable)
+            {
+                if (innerType.EndsWith("?"))
+                {
+                    innerType = innerType.Substring(0, innerType.Length - 1);
+                }
+                else if (innerType.Contains("System.Nullable<"))
+                {
+                    var start = innerType.IndexOf('<') + 1;
+                    var end = innerType.LastIndexOf('>');
+                    if (start > 0 && end > start)
+                    {
+                        innerType = innerType.Substring(start, end - start);
+                    }
+                }
+            }
+
+            innerType = innerType.Replace("global::", "");
+            var attrName = EscapeString(prop.AttributeName);
+            var propName = prop.Name;
+
+            return innerType switch
+            {
+                "System.String" or "string" =>
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.S != null) result.{propName} = __a_{propName}.S;",
+                "System.Char" or "char" =>
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.S != null && __a_{propName}.S.Length > 0) result.{propName} = __a_{propName}.S[0];",
+                "System.Int32" or "int" =>
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.N != null) result.{propName} = int.Parse(__a_{propName}.N, System.Globalization.CultureInfo.InvariantCulture);",
+                "System.Int64" or "long" =>
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.N != null) result.{propName} = long.Parse(__a_{propName}.N, System.Globalization.CultureInfo.InvariantCulture);",
+                "System.Decimal" or "decimal" =>
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.N != null) result.{propName} = decimal.Parse(__a_{propName}.N, System.Globalization.CultureInfo.InvariantCulture);",
+                "System.Double" or "double" =>
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.N != null) result.{propName} = double.Parse(__a_{propName}.N, System.Globalization.CultureInfo.InvariantCulture);",
+                "System.Single" or "float" =>
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.N != null) result.{propName} = float.Parse(__a_{propName}.N, System.Globalization.CultureInfo.InvariantCulture);",
+                "System.Boolean" or "bool" =>
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.BOOL.HasValue) result.{propName} = __a_{propName}.BOOL.Value;",
+                "System.DateTime" =>
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.S != null) result.{propName} = DateTime.Parse(__a_{propName}.S, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AdjustToUniversal);",
+                "System.Guid" =>
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.S != null) result.{propName} = Guid.Parse(__a_{propName}.S);",
+                "System.DateTimeOffset" =>
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.S != null) result.{propName} = System.DateTimeOffset.Parse(__a_{propName}.S, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None);",
+                _ when prop.IsEnum =>
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.N != null) result.{propName} = ({typeName})int.Parse(__a_{propName}.N, System.Globalization.CultureInfo.InvariantCulture);",
+                _ => null
+            };
         }
 
         private static string GenerateRegistration(ImmutableArray<TypeModel> types)
@@ -437,7 +559,9 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                 sb.AppendLine($"                    {typeName}.__DynamoDbMetadata.HashKeyAttributeName,");
                 sb.AppendLine($"                    {typeName}.__DynamoDbMetadata.GetPropertyAttributeName,");
                 sb.AppendLine($"                    obj => {typeName}.__DynamoDbMetadata.MapToAttributes(obj),");
-                sb.AppendLine($"                    item => {typeName}.__DynamoDbMetadata.GetVersion(item)));");
+                sb.AppendLine($"                    item => {typeName}.__DynamoDbMetadata.GetVersion(item),");
+                sb.AppendLine($"                    {typeName}.__DynamoDbMetadata.RangeKeyAttributeName,");
+                sb.AppendLine($"                    attrs => {typeName}.__DynamoDbMetadata.MapFromAttributes(attrs)));");
             }
 
             sb.AppendLine("        }");
@@ -504,6 +628,10 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                     $"new AttributeValue {{ S = {valueAccess}.ToUniversalTime().ToString(\"yyyy-MM-ddTHH:mm:ss.fffZ\") }}",
                 "System.Guid" =>
                     $"new AttributeValue {{ S = {valueAccess}.ToString() }}",
+                "System.DateTimeOffset" =>
+                    $"new AttributeValue {{ S = {valueAccess}.ToUniversalTime().ToString(\"yyyy-MM-ddTHH:mm:ss.fffzzz\") }}",
+                _ when prop.IsEnum =>
+                    $"new AttributeValue {{ N = ((int){valueAccess}).ToString(System.Globalization.CultureInfo.InvariantCulture) }}",
                 _ => null
             };
         }
@@ -522,8 +650,10 @@ namespace DynamoDBv2.Transactions.SourceGenerator
             public string FullyQualifiedName { get; set; } = "";
             public string TableName { get; set; } = "";
             public string HashKeyAttributeName { get; set; } = "";
+            public string? RangeKeyAttributeName { get; set; }
             public List<PropertyModel> Properties { get; set; } = new List<PropertyModel>();
             public string? VersionPropertyName { get; set; }
+            public string? VersionAttributeName { get; set; }
             public string? VersionPropertyType { get; set; }
             public bool VersionIsNullable { get; set; }
         }
@@ -538,6 +668,7 @@ namespace DynamoDBv2.Transactions.SourceGenerator
             public bool IsVersion { get; set; }
             public bool IsNullableValueType { get; set; }
             public bool IsReferenceType { get; set; }
+            public bool IsEnum { get; set; }
             public NullableAnnotation NullableAnnotation { get; set; }
         }
     }

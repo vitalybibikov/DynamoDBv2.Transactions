@@ -40,4 +40,16 @@ public interface IGeneratedTypeMapping
     /// <param name="item">The entity instance.</param>
     /// <returns>Tuple of version property name (or null) and current value.</returns>
     (string? VersionProperty, object? Value) GetVersion(object item);
+
+    /// <summary>
+    /// Gets the DynamoDB range key attribute name for this type, or null if there is no range key.
+    /// </summary>
+    string? RangeKeyAttributeName { get; }
+
+    /// <summary>
+    /// Deserializes a DynamoDB attribute dictionary back to a typed object instance.
+    /// </summary>
+    /// <param name="attributes">The DynamoDB attributes.</param>
+    /// <returns>A new instance of the entity with properties populated from the attributes.</returns>
+    object MapFromAttributes(Dictionary<string, AttributeValue> attributes);
 }

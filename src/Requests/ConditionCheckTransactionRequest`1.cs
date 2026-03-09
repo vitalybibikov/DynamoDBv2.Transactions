@@ -14,6 +14,7 @@ namespace DynamoDBv2.Transactions.Requests
     public sealed class ConditionCheckTransactionRequest<T> : TransactionRequest
     {
         private readonly StringBuilder _conditionBuilder = new();
+        private int _conditionCounter = 0;
 
         public override TransactOperationType Type => TransactOperationType.ConditionCheck;
 
@@ -28,6 +29,23 @@ namespace DynamoDBv2.Transactions.Requests
             var keyAttribute = new AttributeValue { S = keyValue };
             var key = new Dictionary<string, AttributeValue> { { keyNameAttributed, keyAttribute } };
             Key = key;
+        }
+
+        /// <summary>
+        /// Checks condition on item by its HASH + RANGE key values.
+        /// </summary>
+        /// <param name="hashKeyValue">Value of the hash key.</param>
+        /// <param name="rangeKeyValue">Value of the range key.</param>
+        public ConditionCheckTransactionRequest(string hashKeyValue, string rangeKeyValue)
+            : base(typeof(T))
+        {
+            var hashKeyName = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
+            var rangeKeyName = DynamoDbMapper.GetRangeKeyAttributeName(typeof(T));
+            Key = new Dictionary<string, AttributeValue>
+            {
+                { hashKeyName, new AttributeValue { S = hashKeyValue } },
+                { rangeKeyName, new AttributeValue { S = rangeKeyValue } }
+            };
         }
 
         public override Operation GetOperation()
@@ -57,6 +75,11 @@ namespace DynamoDBv2.Transactions.Requests
             if (!String.IsNullOrEmpty(ConditionExpression))
             {
                 check.ConditionExpression = ConditionExpression;
+            }
+
+            if (ReturnValuesOnConditionCheckFailure != null)
+            {
+                check.ReturnValuesOnConditionCheckFailure = ReturnValuesOnConditionCheckFailure;
             }
 
             return Operation.Check(check);
@@ -93,9 +116,13 @@ namespace DynamoDBv2.Transactions.Requests
             var propertyName = GetPropertyName(propertyExpression);
             var attributeValue = DynamoDbMapper.GetAttributeValue(value!);
 
-            ExpressionAttributeNames[$"#{propertyName}"] = propertyName;
-            ExpressionAttributeValues[$":{propertyName}Value"] = attributeValue!;
-            _conditionBuilder.Append($"#{propertyName} {comparisonOperator} :{propertyName}Value AND ");
+            var nameToken = $"#p{_conditionCounter}";
+            var valueToken = $":v{_conditionCounter}";
+            _conditionCounter++;
+
+            ExpressionAttributeNames[nameToken] = propertyName;
+            ExpressionAttributeValues[valueToken] = attributeValue!;
+            _conditionBuilder.Append($"{nameToken} {comparisonOperator} {valueToken} AND ");
         }
 
         private string GetPropertyName<TV, TValue>(Expression<Func<TV, TValue>> expression)

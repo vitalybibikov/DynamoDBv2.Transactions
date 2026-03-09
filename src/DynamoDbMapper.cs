@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DataModel;
@@ -16,6 +17,7 @@ namespace DynamoDBv2.Transactions
         private static readonly ConcurrentDictionary<Type, PropertyInfo[]> PropertyCache = new();
         private static readonly ConcurrentDictionary<Type, PropertyInfo?> VersionPropertyCache = new();
         private static readonly ConcurrentDictionary<Type, int> PropertyCountCache = new();
+        private static readonly ConcurrentDictionary<Type, string> RangeKeyCache = new();
 
         /// <summary>
         /// Registers a source-generated mapping for the specified type.
@@ -30,6 +32,12 @@ namespace DynamoDBv2.Transactions
         }
 
         /// <summary>
+        /// Gets or sets the global table name prefix applied to all table name resolutions.
+        /// Set this at application startup (e.g., "dev-", "qa-", "prod-").
+        /// </summary>
+        public static string? TableNamePrefix { get; set; }
+
+        /// <summary>
         /// Gets the DynamoDB table name for the specified type,
         /// using the generated mapping if available, otherwise falling back to reflection.
         /// </summary>
@@ -39,16 +47,16 @@ namespace DynamoDBv2.Transactions
         {
             if (GeneratedMappings.TryGetValue(type, out var mapping))
             {
-                return mapping.TableName;
+                return (TableNamePrefix ?? string.Empty) + mapping.TableName;
             }
 
             var tableAttribute = type.GetCustomAttribute<DynamoDBTableAttribute>();
             if (tableAttribute != null && !string.IsNullOrEmpty(tableAttribute.TableName))
             {
-                return tableAttribute.TableName;
+                return (TableNamePrefix ?? string.Empty) + tableAttribute.TableName;
             }
 
-            return type.Name;
+            return (TableNamePrefix ?? string.Empty) + type.Name;
         }
 
         public static AttributeValue GetAttributeValue(int value) => new() { N = value.ToString(CultureInfo.InvariantCulture) };
@@ -60,6 +68,7 @@ namespace DynamoDBv2.Transactions
         public static AttributeValue GetAttributeValue(char value) => new() { S = value.ToString() };
         public static AttributeValue GetAttributeValue(bool value) => new() { BOOL = value };
         public static AttributeValue GetAttributeValue(DateTime value) => new() { S = value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") };
+        public static AttributeValue GetAttributeValue(DateTimeOffset value) => new() { S = value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffzzz") };
 
         public static AttributeValue? GetAttributeValue(object value)
         {
@@ -74,6 +83,8 @@ namespace DynamoDBv2.Transactions
                 bool b => GetAttributeValue(b),
                 char c => GetAttributeValue(c),
                 DateTime dt => GetAttributeValue(dt),
+                DateTimeOffset dto => new AttributeValue { S = dto.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffzzz") },
+                Enum e => new AttributeValue { N = Convert.ToInt32(e).ToString(CultureInfo.InvariantCulture) },
                 _ => ConvertToAttributeValueV2(value),
             };
         }
@@ -145,6 +156,87 @@ namespace DynamoDBv2.Transactions
 
                 throw new ArgumentException("Failed to find hash key attribute on type " + t.FullName);
             });
+        }
+
+        public static string GetRangeKeyAttributeName(Type type)
+        {
+            if (GeneratedMappings.TryGetValue(type, out var mapping))
+            {
+                if (mapping.RangeKeyAttributeName != null)
+                {
+                    return mapping.RangeKeyAttributeName;
+                }
+
+                throw new ArgumentException("Type " + type.FullName + " does not have a range key attribute.");
+            }
+
+            return RangeKeyCache.GetOrAdd(type, static t =>
+            {
+                foreach (var property in GetCachedProperties(t))
+                {
+                    var rangeKeyAttr = property.GetCustomAttribute<DynamoDBRangeKeyAttribute>();
+                    if (rangeKeyAttr != null)
+                    {
+                        return string.IsNullOrWhiteSpace(rangeKeyAttr.AttributeName)
+                            ? property.Name
+                            : rangeKeyAttr.AttributeName;
+                    }
+                }
+
+                throw new ArgumentException("Failed to find range key attribute on type " + t.FullName);
+            });
+        }
+
+        /// <summary>
+        /// Deserializes a DynamoDB attribute dictionary back to a typed object.
+        /// Uses source-generated mapping if available, otherwise falls back to reflection.
+        /// </summary>
+        /// <param name="type">The target entity type.</param>
+        /// <param name="attributes">The DynamoDB attributes.</param>
+        /// <returns>A new instance of the entity with properties populated from the attributes.</returns>
+        public static object MapFromAttributes(Type type, Dictionary<string, AttributeValue> attributes)
+        {
+            if (GeneratedMappings.TryGetValue(type, out var mapping))
+            {
+                return mapping.MapFromAttributes(attributes);
+            }
+
+            // Reflection fallback
+            var instance = Activator.CreateInstance(type)
+                ?? throw new InvalidOperationException($"Could not create instance of {type.FullName}. Ensure it has a parameterless constructor.");
+
+            var properties = GetCachedProperties(type);
+            foreach (var property in properties)
+            {
+                if (!property.CanWrite)
+                {
+                    continue;
+                }
+
+                var attributeName = GetPropertyAttributedName(type, property.Name);
+                if (attributes.TryGetValue(attributeName, out var attrValue))
+                {
+                    var converted = ConvertFromAttributeValue(attrValue, property.PropertyType);
+                    if (converted != null)
+                    {
+                        property.SetValue(instance, converted);
+                    }
+                }
+            }
+
+            return instance;
+        }
+
+        /// <summary>
+        /// Typed deserialization helper.
+        /// </summary>
+        /// <typeparam name="T">The entity type.</typeparam>
+        /// <param name="attributes">The DynamoDB attributes to deserialize.</param>
+        /// <returns>A new instance of the entity.</returns>
+        public static T MapFromAttributes<T>(Dictionary<string, AttributeValue> attributes)
+            where T : class, new()
+        {
+            return (T)MapFromAttributes(typeof(T), attributes);
         }
 
         /// <summary>
@@ -244,12 +336,19 @@ namespace DynamoDBv2.Transactions
 
             var value = versionProperty?.GetValue(item, null);
 
-            return (versionProperty?.Name, value);
+            if (versionProperty == null)
+            {
+                return (null, value);
+            }
+
+            return (GetPropertyAttributedName(type, versionProperty.Name), value);
         }
 
         private static PropertyInfo[] GetCachedProperties(Type type)
         {
-            return PropertyCache.GetOrAdd(type, static t => t.GetProperties());
+            return PropertyCache.GetOrAdd(type, static t => t.GetProperties()
+                .Where(p => p.GetCustomAttribute<DynamoDBIgnoreAttribute>() == null)
+                .ToArray());
         }
 
         private static AttributeValue ConvertToAttributeValueV2(object? value)
@@ -281,6 +380,10 @@ namespace DynamoDBv2.Transactions
                     return new AttributeValue { S = dateTime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") };
                 case Guid guid:
                     return new AttributeValue { S = guid.ToString() };
+                case DateTimeOffset dto:
+                    return new AttributeValue { S = dto.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffzzz") };
+                case Enum e:
+                    return new AttributeValue { N = Convert.ToInt32(e).ToString(CultureInfo.InvariantCulture) };
                 case IDictionary dictionary:
                     return new AttributeValue { M = MapDictionaryToAttributeValue(dictionary, ConvertToAttributeValueV2) };
                 case IEnumerable enumerable:
@@ -396,6 +499,10 @@ namespace DynamoDBv2.Transactions
                     return new AttributeValue { S = dateTime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") };
                 case Guid guid:
                     return new AttributeValue { S = guid.ToString() };
+                case DateTimeOffset dto:
+                    return new AttributeValue { S = dto.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffzzz") };
+                case Enum e:
+                    return new AttributeValue { N = Convert.ToInt32(e).ToString(CultureInfo.InvariantCulture) };
                 case IDictionary dictionary:
                     return new AttributeValue { M = MapDictionaryToAttributeValue(dictionary, ConvertToAttributeValueV1) };
                 case IEnumerable enumerable:
@@ -484,6 +591,99 @@ namespace DynamoDBv2.Transactions
 
                     throw new ArgumentException($"Unsupported type: {value.GetType()}");
             }
+        }
+
+        private static object? ConvertFromAttributeValue(AttributeValue attrValue, Type targetType)
+        {
+            if (attrValue.NULL == true)
+            {
+                return null;
+            }
+
+            var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+            if (attrValue.S != null)
+            {
+                if (underlyingType == typeof(string))
+                {
+                    return attrValue.S;
+                }
+
+                if (underlyingType == typeof(char) && attrValue.S.Length > 0)
+                {
+                    return attrValue.S[0];
+                }
+
+                if (underlyingType == typeof(DateTime))
+                {
+                    return DateTime.Parse(attrValue.S, CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AdjustToUniversal);
+                }
+
+                if (underlyingType == typeof(Guid))
+                {
+                    return Guid.Parse(attrValue.S);
+                }
+
+                if (underlyingType == typeof(DateTimeOffset))
+                {
+                    return DateTimeOffset.Parse(attrValue.S, CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None);
+                }
+            }
+
+            if (attrValue.N != null)
+            {
+                if (underlyingType == typeof(int))
+                {
+                    return int.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(long))
+                {
+                    return long.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(decimal))
+                {
+                    return decimal.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(double))
+                {
+                    return double.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(float))
+                {
+                    return float.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(short))
+                {
+                    return short.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(byte))
+                {
+                    return byte.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType.IsEnum)
+                {
+                    return Enum.ToObject(underlyingType, int.Parse(attrValue.N, CultureInfo.InvariantCulture));
+                }
+            }
+
+            if (underlyingType == typeof(bool))
+            {
+                return attrValue.BOOL;
+            }
+
+            if (attrValue.B != null && underlyingType == typeof(byte[]))
+            {
+                return attrValue.B.ToArray();
+            }
+
+            return null;
         }
 
         private static bool IsNumericType(Type type)
