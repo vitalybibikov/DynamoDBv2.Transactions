@@ -26,6 +26,7 @@ A high-performance .NET library for Amazon DynamoDB transactions with **compile-
 
 ![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)
 ![.NET 9](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
+![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
 ![AWS SDK v4](https://img.shields.io/badge/AWS_SDK-v4-FF9900?logo=amazonaws&logoColor=white)
 ![Source Link](https://img.shields.io/badge/Source_Link-valid-green)
 ![Deterministic](https://img.shields.io/badge/Deterministic-valid-green)
@@ -126,7 +127,7 @@ await using (var transactor = new DynamoDbTransactor(client))
 - **TransactionOptions**: `ClientRequestToken`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`
 - **Versioning**: Automatic version increment handling for optimistic concurrency
 - **Async API**: Fully asynchronous
-- **Multi-targeting**: .NET 8.0 and .NET 9.0
+- **Multi-targeting**: .NET 8.0, .NET 9.0, and .NET 10.0
 
 ## Usage Examples
 
