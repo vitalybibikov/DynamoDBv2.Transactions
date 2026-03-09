@@ -73,11 +73,15 @@ public class DynamoDbReadTransactor : IDynamoDbReadTransactor, IAsyncDisposable
     /// <inheritdoc />
     public async Task<TransactionGetResult> ExecuteAsync(CancellationToken token = default)
     {
-        var response = await _manager.ExecuteGetTransactionAsync(_requests, Options, token);
+        // Snapshot and clear to prevent accumulation across multiple calls
+        var requests = _requests.ToList();
+        _requests.Clear();
 
-        var items = new List<TransactionGetResult.TransactionGetResultItem>(_requests.Count);
+        var response = await _manager.ExecuteGetTransactionAsync(requests, Options, token);
 
-        for (var i = 0; i < _requests.Count; i++)
+        var items = new List<TransactionGetResult.TransactionGetResultItem>(requests.Count);
+
+        for (var i = 0; i < requests.Count; i++)
         {
             var attrs = response?.Responses != null && i < response.Responses.Count
                 ? response.Responses[i].Item
@@ -85,7 +89,7 @@ public class DynamoDbReadTransactor : IDynamoDbReadTransactor, IAsyncDisposable
 
             items.Add(new TransactionGetResult.TransactionGetResultItem
             {
-                RequestedType = _requests[i].ItemType,
+                RequestedType = requests[i].ItemType,
                 Attributes = attrs
             });
         }

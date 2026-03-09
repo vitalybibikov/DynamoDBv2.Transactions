@@ -49,11 +49,11 @@ namespace DynamoDBv2.Transactions.UnitTests
 
         // 5. Empty numeric HashSet
         [Fact]
-        public void V1_EmptyNumericHashSet_ShouldMapToEmptyNS()
+        public void V1_EmptyNumericHashSet_ShouldReturnNull()
         {
             var value = new HashSet<int>();
             var result = InvokeV1(value);
-            Assert.Empty(result.NS);
+            Assert.True(result.NULL);
         }
 
         // 6. Array of DateTimes

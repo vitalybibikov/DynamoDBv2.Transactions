@@ -59,6 +59,13 @@ public sealed class ReadTransactionManager(IAmazonDynamoDB client)
             transactGetItems.Add(new TransactGetItem { Get = get });
         }
 
+        if (transactGetItems.Count == 0)
+        {
+            throw new ArgumentException(
+                "DynamoDB TransactGetItems requires at least one item.",
+                nameof(requests));
+        }
+
         if (transactGetItems.Count > MaxTransactionItems)
         {
             throw new ArgumentException(
