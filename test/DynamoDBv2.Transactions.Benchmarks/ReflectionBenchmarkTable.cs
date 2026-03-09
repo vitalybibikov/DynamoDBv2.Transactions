@@ -1,8 +1,12 @@
-﻿using Amazon.DynamoDBv2.DataModel;
+using Amazon.DynamoDBv2.DataModel;
 
 namespace DynamoDBv2.Transactions.Benchmarks
 {
-    public partial class BenchmarkTable : ITransactional
+    /// <summary>
+    /// Non-partial entity — forces reflection path in DynamoDbMapper.
+    /// Identical properties to BenchmarkTable for fair comparison.
+    /// </summary>
+    public class ReflectionBenchmarkTable : ITransactional
     {
         [DynamoDBHashKey("UserId")]
         public string UserId { get; set; }

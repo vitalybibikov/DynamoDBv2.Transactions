@@ -5,7 +5,7 @@
     <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>3.7.407</Version>
+    <Version>4.0.14.1</Version>
     <Copyright>vitalybibikov</Copyright>
     <PackageTags>DynamoDB Transactions AWSSDK.DynamoDBv2 AWS Amazon aws-sdk-v3 extensions</PackageTags>
     <PackageProjectUrl>https://github.com/vitalybibikov/DynamoDBv2.Transactions</PackageProjectUrl>
@@ -41,6 +41,9 @@
     <Compile Remove="nupkgs\**" />
     <EmbeddedResource Remove="nupkgs\**" />
     <None Remove="nupkgs\**" />
+    <Compile Remove="DynamoDBv2.Transactions.SourceGenerator\**" />
+    <EmbeddedResource Remove="DynamoDBv2.Transactions.SourceGenerator\**" />
+    <None Remove="DynamoDBv2.Transactions.SourceGenerator\**" />
   </ItemGroup>
 
   <ItemGroup>    
@@ -53,9 +56,28 @@
     </PackageReference>
     <AdditionalFiles Include="..\stylecop.json" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="DynamoDBv2.Transactions.SourceGenerator\DynamoDBv2.Transactions.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Pack the source generator into the NuGet package as an analyzer -->
+  <PropertyGroup>
+    <GetTargetPathDependsOn>$(GetTargetPathDependsOn);_AddSourceGeneratorToPackage</GetTargetPathDependsOn>
+  </PropertyGroup>
+  <Target Name="_AddSourceGeneratorToPackage">
+    <ItemGroup>
+      <None Include="$(OutputPath)\..\..\..\DynamoDBv2.Transactions.SourceGenerator\bin\$(Configuration)\netstandard2.0\DynamoDBv2.Transactions.SourceGenerator.dll"
+            Pack="true"
+            PackagePath="analyzers/dotnet/cs"
+            Visible="false" />
+    </ItemGroup>
+  </Target>
   
   <ItemGroup>
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.407">
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.14.1">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
   </ItemGroup>

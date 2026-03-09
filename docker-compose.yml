@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   tests:
     image: ${DOCKER_REGISTRY-}tests

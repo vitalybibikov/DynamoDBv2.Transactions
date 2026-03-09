@@ -1,5 +1,3 @@
-version: '3.9'
-
 x-common-variables: &common-variables
   'ASPNETCORE_ENVIRONMENT': Development
 
