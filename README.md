@@ -1,40 +1,89 @@
 # DynamoDBv2.Transactions
 
-DynamoDBv2.Transactions is a .NET library that provides a robust wrapper around the Amazon DynamoDB low-level API, enabling easy and efficient management of transactions for batch operations. This library is designed to simplify complex transactional logic and ensure data consistency across your DynamoDB operations.
-It skips additional implicit for some cases DescribeTable call, thus making DynamoDB attributes mandatory - alternatively too using the attributes you can provide KeyName/KeyValue as a separate parameter to a method.
+A high-performance .NET library for Amazon DynamoDB transactions with **compile-time source generation** — up to **82x faster** than reflection-based mapping.
 
-Unit Tests: 259 Passed
+<p align="center">
 
-Integration Tests via localstack: 33 Passed
-
-[![.github/workflows/dotnet.yml](https://github.com/vitalybibikov/DynamoDBv2.Transactions/actions/workflows/dotnet.yml/badge.svg)](https://github.com/vitalybibikov/DynamoDBv2.Transactions/actions/workflows/dotnet.yml)
-
-
+[![CI](https://github.com/vitalybibikov/DynamoDBv2.Transactions/actions/workflows/dotnet.yml/badge.svg)](https://github.com/vitalybibikov/DynamoDBv2.Transactions/actions/workflows/dotnet.yml)
+[![Auto-Release](https://github.com/vitalybibikov/DynamoDBv2.Transactions/actions/workflows/auto-release.yml/badge.svg)](https://github.com/vitalybibikov/DynamoDBv2.Transactions/actions/workflows/auto-release.yml)
 [![codecov](https://codecov.io/gh/vitalybibikov/DynamoDBv2.Transactions/graph/badge.svg?token=CYF75Y00KH)](https://codecov.io/gh/vitalybibikov/DynamoDBv2.Transactions)
+[![NuGet](https://img.shields.io/nuget/v/DynamoDBv2.Transactions?logo=nuget&label=NuGet)](https://www.nuget.org/packages/DynamoDBv2.Transactions)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/DynamoDBv2.Transactions?logo=nuget&label=Downloads)](https://www.nuget.org/packages/DynamoDBv2.Transactions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-- Source Link: Valid with Symbol Server
-- Deterministic (dll/exe): Valid
-- Compiler Flags: Valid
+</p>
 
-## Features
+<p align="center">
 
-- **AWS SDK v4 Support**: Built for AWSSDK.DynamoDBv2 v4.x with full compatibility.
-- **Source Generator**: Compile-time DynamoDB attribute mapping — zero reflection at runtime for `partial` entity classes.
-- **Transactional Operations**: Supports `CreateOrUpdate`, `Delete`, `Update`, `Patch`, and `ConditionCheck` operations within transactions.
-- **100-Item Limit Validation**: Enforces DynamoDB's 100 transact-item limit before sending the request.
-- **TransactionOptions**: Configure `ClientRequestToken`, `ReturnConsumedCapacity`, and `ReturnItemCollectionMetrics`.
-- **Versioning Support**: Automatic handling of version increments for transactional integrity.
-- **Error Handling**: Gracefully handles transaction failures and rollbacks.
-- **Easy Integration**: Seamlessly integrates with existing DynamoDB setups.
-- **Asynchronous API**: Fully asynchronous API for optimal performance.
-- **Multi-targeting**: Supports both .NET 8.0 and .NET 9.0.
+![Unit Tests](https://img.shields.io/badge/Unit_Tests-259_passed-brightgreen?logo=dotnet&logoColor=white)
+![Integration Tests](https://img.shields.io/badge/Integration_Tests-33_passed-brightgreen?logo=docker&logoColor=white)
+![Source Generator Tests](https://img.shields.io/badge/Source_Generator-16_tests-brightgreen?logo=dotnet&logoColor=white)
+![Benchmarks](https://img.shields.io/badge/Benchmarks-A%2FB_validated-blue?logo=speedtest&logoColor=white)
 
-## Source Generator (Zero-Reflection Mapping)
+</p>
 
-For maximum performance, make your DynamoDB entity classes `partial`. The included source generator will automatically generate compile-time attribute mappings, eliminating all reflection overhead at runtime.
+<p align="center">
+
+![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)
+![.NET 9](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)
+![AWS SDK v4](https://img.shields.io/badge/AWS_SDK-v4-FF9900?logo=amazonaws&logoColor=white)
+![Source Link](https://img.shields.io/badge/Source_Link-valid-green)
+![Deterministic](https://img.shields.io/badge/Deterministic-valid-green)
+
+</p>
+
+---
+
+## Why This Library?
+
+DynamoDBv2.Transactions skips the implicit `DescribeTable` call that the standard AWS SDK wrapper makes, using DynamoDB attributes directly instead. Combined with the **source generator**, this delivers dramatically faster performance:
+
+<table>
+<tr>
+<td width="50%">
+
+### Source Generator vs Reflection
+
+| Operation | Speedup |
+|-----------|--------:|
+| `GetTableName` | **82x faster** |
+| `MapToAttribute` (15 props) | **4.1x faster** |
+| `GetHashKeyAttributeName` | **2.1x faster** |
+| `GetPropertyAttributedName` | **1.9x faster** |
+| `GetVersion` | **1.3x faster** |
+
+</td>
+<td width="50%">
+
+### End-to-End vs Standard SDK Wrapper
+
+| Operation | This Library | Standard | Speedup |
+|-----------|------------:|----------:|--------:|
+| 1-item write | 12.0 ms | 15.8 ms | **1.3x** |
+| 3-item write | 13.4 ms | 46.4 ms | **3.5x** |
+| 3-item alloc | 115 KB | 251 KB | **2.2x less** |
+
+</td>
+</tr>
+</table>
+
+> All key lookups are **zero-allocation** via compile-time switch expressions. Just make your entity class `partial` — no other changes needed.
+
+---
+
+## Installation
+
+```bash
+dotnet add package DynamoDBv2.Transactions
+```
+
+## Quick Start
+
+### 1. Define Your Entity
+
+Make it `partial` and the source generator handles the rest — zero configuration:
 
 ```csharp
-// Just add 'partial' — the source generator does the rest
 [DynamoDBTable("MyTable")]
 public partial class MyEntity : ITransactional
 {
@@ -49,158 +98,83 @@ public partial class MyEntity : ITransactional
 }
 ```
 
-The generator automatically discovers all `partial` classes with `[DynamoDBHashKey]` properties and registers them via `[ModuleInitializer]`. No additional configuration needed.
+The generator auto-discovers all `partial` classes with `[DynamoDBHashKey]` and registers them at startup via `[ModuleInitializer]`. Non-partial classes fall back to cached reflection seamlessly.
 
-For explicit opt-in, you can also use `[DynamoDbGenerateMapping]`:
-
-```csharp
-[DynamoDbGenerateMapping]
-public partial class MyEntity { ... }
-```
-
-Non-partial classes continue to work via cached reflection (the existing behavior).
-
-## Installation
-
-You can install the DynamoDBv2.Transactions library via NuGet Package Manager. Run the following command in your Package Manager Console:
-
-```bash
-Install-Package DynamoDBv2.Transactions
-```
-
-## Quick Start
-
-To get started with DynamoDBv2.Transactions, you'll need to set up an instance of `DynamoDbTransactor` using an `IAmazonDynamoDB` client.
-
-### Prerequisites
-
-Ensure you have the AWS SDK for .NET configured in your project, with access to Amazon DynamoDB.
-
-### Example Usage
-!!! It skips additional implicit for some cases DescribeTable call, thus making DynamoDB attribute [DynamoDBHashKey("YourId")] mandatory !!!
-Which makes it faster in comparison with the traditional wrapper.
-Here's a quick example to show you how to use the `DynamoDbTransactor` to perform a transaction:
+### 2. Perform a Transaction
 
 ```csharp
 using DynamoDBv2.Transactions;
 
-// Initialize the DynamoDB client
 var client = new AmazonDynamoDBClient();
 
-var userId = Guid.NewGuid().ToString();
-var testItem = new TestTable
-{
-    UserId = userId,
-    SomeDecimal = 123.45m,
-    SomeDate = DateTime.UtcNow,
-    SomeInt = 123
-};
-
-// Perform transaction
 await using (var transactor = new DynamoDbTransactor(client))
 {
-    transactor.CreateOrUpdate(testItem);
+    transactor.CreateOrUpdate(new MyEntity
+    {
+        Id = "user-123",
+        Name = "Alice"
+    });
 }
-
-// Load and verify
-var dbContext = new DynamoDBContext(client);
-var data = await dbContext.LoadAsync<TestTable>(userId);
-Console.WriteLine($"Item saved with UserId: {data.UserId}");
 ```
+
+## Features
+
+- **AWS SDK v4**: Built for AWSSDK.DynamoDBv2 v4.x
+- **Source Generator**: Compile-time DynamoDB attribute mapping — zero reflection for `partial` classes
+- **Transactional Operations**: `CreateOrUpdate`, `Delete`, `Update`, `Patch`, `ConditionCheck`
+- **100-Item Limit Validation**: Enforces DynamoDB's limit before sending the request
+- **TransactionOptions**: `ClientRequestToken`, `ReturnConsumedCapacity`, `ReturnItemCollectionMetrics`
+- **Versioning**: Automatic version increment handling for optimistic concurrency
+- **Async API**: Fully asynchronous
+- **Multi-targeting**: .NET 8.0 and .NET 9.0
+
+## Usage Examples
 
 ### Deleting an Item
 ```csharp
-// Arrange
-var userIdToDelete = "unique-user-id";
-
-// Act
-await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
+await using (var transactor = new DynamoDbTransactor(client))
 {
     transactor.DeleteAsync<TestTable>(userIdToDelete);
-};
-
-// This operation will asynchronously delete the specified item from DynamoDB.
-
-```
-### Patching an Item
-
-```csharp
-// Arrange
-var userIdToPatch = "unique-user-id";
-var updatedDate = DateTime.UtcNow.AddDays(1);
-
-// Act
-await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
-{
-    transactor.PatchAsync<TestTable, DateTime?>(userIdToPatch, t => t.SomeNullableDate1, updatedDate);
-};
-
-// This code patches the 'SomeNullableDate1' property of the specified item to a new date.
-
+}
 ```
 
-
-### Adding a conditional check
-
+### Patching a Property
 ```csharp
-// Arrange
-var userIdToCheck = "unique-user-id";
-
-// Act
-await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
+await using (var transactor = new DynamoDbTransactor(client))
 {
-    transactor.ConditionGreaterThan<TestTable, int>(userIdToCheck, t => t.SomeInt, 100);
-    transactor.CreateOrUpdate(new TestTable { UserId = userIdToCheck, SomeInt = 200 });
-};
-
-// This will add a conditional check to ensure 'SomeInt' is greater than 100 before updating or creating the item.
-
+    transactor.PatchAsync<TestTable, DateTime?>(userId, t => t.SomeNullableDate1, updatedDate);
+}
 ```
 
-###  Complex Transaction with Multiple Operations
-
+### Conditional Check + Update
 ```csharp
-// Arrange
-var userId = Guid.NewGuid().ToString();
-var testItem = new TestTable
+await using (var transactor = new DynamoDbTransactor(client))
 {
-    UserId = userId,
-    SomeInt = 150,
-    SomeDate = DateTime.UtcNow,
-    SomeBool = true
-};
+    transactor.ConditionGreaterThan<TestTable, int>(userId, t => t.SomeInt, 100);
+    transactor.CreateOrUpdate(new TestTable { UserId = userId, SomeInt = 200 });
+}
+```
 
-// Act
-await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
+### Complex Multi-Operation Transaction
+```csharp
+await using (var transactor = new DynamoDbTransactor(client))
 {
     transactor.ConditionNotEquals<TestTable, bool>(userId, t => t.SomeBool, false);
     transactor.CreateOrUpdate(testItem);
     transactor.PatchAsync<TestTable, int>(userId, t => t.SomeInt, 200);
-};
-
-// This transaction will check if 'SomeBool' is not false, then create or update the item, and finally patch 'SomeInt' to 200.
-
+}
 ```
 
 ### Version Check Before Update
 ```csharp
-// Arrange
-var userId = Guid.NewGuid().ToString();
-var expectedVersion = 1;
-
-// Act
-await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
+await using (var transactor = new DynamoDbTransactor(client))
 {
     transactor.ConditionVersionEquals<TestTable>(userId, t => t.Version, expectedVersion);
     transactor.CreateOrUpdate(new TestTable { UserId = userId, SomeInt = 250 });
-};
-
-// This ensures the item's version matches the expected version before it is updated or created.
-
+}
 ```
 
 ### Using TransactionOptions
-
 ```csharp
 await using (var transactor = new DynamoDbTransactor(client))
 {
@@ -212,10 +186,10 @@ await using (var transactor = new DynamoDbTransactor(client))
 
     transactor.CreateOrUpdate(item1);
     transactor.CreateOrUpdate(item2);
-};
+}
 ```
 
-## Benchmark Results
+## Detailed Benchmark Results
 
 ### Mapper Performance: Source-Generated vs Reflection
 
@@ -242,8 +216,6 @@ Runtime=.NET 9.0  IterationCount=20  LaunchCount=3  WarmupCount=5
 | GetTableName **(source-generated)**       |     13.87 ns |       0 B | **82x faster**  |
 | GetTableName (reflection)                 |  1,135.12 ns |     144 B |     baseline  |
 
-Key lookups are **zero-allocation** via compile-time switch expressions. `MapToAttribute` is **4x faster** by eliminating `PropertyInfo.GetValue()` reflection calls. `GetTableName` is **82x faster** because reflection must call `GetCustomAttribute<DynamoDBTableAttribute>()` on every invocation.
-
 ### End-to-End Transaction Performance
 
 Full transactional writes against DynamoDB (includes network I/O via localstack).
@@ -262,7 +234,7 @@ Job=OutOfProc  IterationCount=15  LaunchCount=3  WarmupCount=10
 | DynamoDbTransactionsWrapper3Items | 13.37 ms | 0.066 ms | 0.123 ms | 114.74 KB |
 | OriginalWrapper3Items             | 46.44 ms | 0.444 ms | 0.834 ms | 251.01 KB |
 
-### To run benchmarks:
+### Running Benchmarks
 ```bash
 dotnet run --project test/DynamoDBv2.Transactions.Benchmarks -c Release -- --filter '*MapperBenchmark*'
 dotnet run --project test/DynamoDBv2.Transactions.Benchmarks -c Release -- --filter '*Benchmark*'
@@ -270,34 +242,11 @@ dotnet run --project test/DynamoDBv2.Transactions.Benchmarks -c Release -- --fil
 
 ## Running Tests
 
-### To run integration tests
-ensure you have a test instance of DynamoDB available.  (and configure it in env of the docker compose file)
-(On my env tests are running both in real DynamoDB and localstack instance)
-Tests are written using xUnit and should be configured to interact directly with your database:
+Integration tests run via Docker Compose with localstack:
 
-1. docker-compose up --exit-code-from tests tests localstack
-2. docker-compose up --exit-code-from unittests unittests
-
-```csharp
-// Example test
-[Fact]
-public async Task SaveDataAndRetrieve()
-{
-    var userId = Guid.NewGuid().ToString();
-    var testItem = new TestTable
-    {
-        UserId = userId,
-        SomeInt = 123
-    };
-
-    await using (var transactor = new DynamoDbTransactor(_fixture.Db.Client))
-    {
-        transactor.CreateOrUpdate(testItem);
-    }
-
-    var retrievedItem = await _fixture.Db.Context.LoadAsync<TestTable>(userId);
-    Assert.NotNull(retrievedItem);
-}
+```bash
+docker-compose up --exit-code-from tests tests localstack
+docker-compose up --exit-code-from unittests unittests
 ```
 
 ## Contributing
@@ -308,7 +257,6 @@ When creating PRs, please review the following guidelines:
 - [ ] At least one of the commit messages contains the appropriate `+semver:` keywords listed under [Incrementing the Version] for major and minor increments.
 - [ ] The action has been recompiled.  See [Recompiling Manually] for details.
 - [ ] The README.md has been updated with the latest version of the action.  See [Updating the README.md] for details.
-
 
 ## License
 
