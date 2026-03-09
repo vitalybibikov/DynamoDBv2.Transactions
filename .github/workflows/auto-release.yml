@@ -107,7 +107,14 @@ jobs:
 
       - name: Publish to NuGet.org
         run: |
-          for file in $(find ${{ env.NuGetDirectory }} -name "*.nupkg" -or -name "*.snupkg"); do
+          # Push .nupkg first, then .snupkg (symbols require the package to exist)
+          for file in $(find ${{ env.NuGetDirectory }} -name "*.nupkg" ! -name "*.snupkg"); do
+            dotnet nuget push "$file" \
+              --api-key "${{ secrets.NUGET_PUSH_KEY }}" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done
+          for file in $(find ${{ env.NuGetDirectory }} -name "*.snupkg"); do
             dotnet nuget push "$file" \
               --api-key "${{ secrets.NUGET_PUSH_KEY }}" \
               --source https://api.nuget.org/v3/index.json \
@@ -123,7 +130,13 @@ jobs:
             --name github \
             "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
 
-          for file in $(find ${{ env.NuGetDirectory }} -name "*.nupkg" -or -name "*.snupkg"); do
+          for file in $(find ${{ env.NuGetDirectory }} -name "*.nupkg" ! -name "*.snupkg"); do
+            dotnet nuget push "$file" \
+              --api-key ${{ secrets.GITHUB_TOKEN }} \
+              --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/" \
+              --skip-duplicate
+          done
+          for file in $(find ${{ env.NuGetDirectory }} -name "*.snupkg"); do
             dotnet nuget push "$file" \
               --api-key ${{ secrets.GITHUB_TOKEN }} \
               --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/" \
