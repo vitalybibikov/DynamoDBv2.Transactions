@@ -46,7 +46,14 @@ public sealed class TransactionManager(IAmazonDynamoDB client)
         TransactionOptions? options,
         CancellationToken token = default)
     {
-        var transactWriteItems = new List<TransactWriteItem>();
+        int initialCapacity = requests is ICollection<ITransactionRequest> col ? col.Count : 0;
+#if NET6_0_OR_GREATER
+        if (initialCapacity == 0)
+        {
+            requests.TryGetNonEnumeratedCount(out initialCapacity);
+        }
+#endif
+        var transactWriteItems = new List<TransactWriteItem>(initialCapacity);
 
         foreach (var transactionRequest in requests)
         {

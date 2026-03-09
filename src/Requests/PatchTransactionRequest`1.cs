@@ -83,12 +83,12 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
             Key = Key
         };
 
-        if (ExpressionAttributeNames.Any())
+        if (ExpressionAttributeNames.Count > 0)
         {
             update.ExpressionAttributeNames = ExpressionAttributeNames;
         }
 
-        if (ExpressionAttributeValues.Any())
+        if (ExpressionAttributeValues.Count > 0)
         {
             update.ExpressionAttributeValues = ExpressionAttributeValues;
         }

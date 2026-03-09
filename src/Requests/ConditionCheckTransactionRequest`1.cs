@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using System.Text;
 using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Requests.Abstract;
@@ -12,6 +13,8 @@ namespace DynamoDBv2.Transactions.Requests
     /// </summary>
     public sealed class ConditionCheckTransactionRequest<T> : TransactionRequest
     {
+        private readonly StringBuilder _conditionBuilder = new();
+
         public override TransactOperationType Type => TransactOperationType.ConditionCheck;
 
         /// <summary>
@@ -29,23 +32,24 @@ namespace DynamoDBv2.Transactions.Requests
 
         public override Operation GetOperation()
         {
-            if (!String.IsNullOrEmpty(ConditionExpression) && ConditionExpression.EndsWith(" AND "))
+            if (_conditionBuilder.Length >= 5)
             {
-                ConditionExpression = ConditionExpression[..^5];
+                _conditionBuilder.Length -= 5; // trim trailing " AND "
+                ConditionExpression = _conditionBuilder.ToString();
             }
-            
+
             var check = new ConditionCheck
             {
                 TableName = TableName,
                 Key = Key
             };
 
-            if (ExpressionAttributeNames.Any())
+            if (ExpressionAttributeNames.Count > 0)
             {
                 check.ExpressionAttributeNames = ExpressionAttributeNames;
             }
 
-            if (ExpressionAttributeValues.Any())
+            if (ExpressionAttributeValues.Count > 0)
             {
                 check.ExpressionAttributeValues = ExpressionAttributeValues;
             }
@@ -91,7 +95,7 @@ namespace DynamoDBv2.Transactions.Requests
 
             ExpressionAttributeNames[$"#{propertyName}"] = propertyName;
             ExpressionAttributeValues[$":{propertyName}Value"] = attributeValue!;
-            ConditionExpression += $"#{propertyName} {comparisonOperator} :{propertyName}Value AND ";
+            _conditionBuilder.Append($"#{propertyName} {comparisonOperator} :{propertyName}Value AND ");
         }
 
         private string GetPropertyName<TV, TValue>(Expression<Func<TV, TValue>> expression)
