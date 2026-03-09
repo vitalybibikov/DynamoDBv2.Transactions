@@ -683,6 +683,65 @@ namespace DynamoDBv2.Transactions
                 return attrValue.B.ToArray();
             }
 
+            if (attrValue.B != null && underlyingType == typeof(MemoryStream))
+            {
+                var ms = new MemoryStream();
+                attrValue.B.CopyTo(ms);
+                ms.Position = 0;
+                return ms;
+            }
+
+            // Dictionary<string, T> from Map
+            if (underlyingType.IsGenericType && underlyingType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+            {
+                var args = underlyingType.GetGenericArguments();
+                if (args[0] == typeof(string))
+                {
+                    var dict = (IDictionary)Activator.CreateInstance(underlyingType)!;
+                    foreach (var kvp in attrValue.M)
+                    {
+                        dict[kvp.Key] = ConvertFromAttributeValue(kvp.Value, args[1]);
+                    }
+                    return dict;
+                }
+            }
+
+            // List<T> / IList<T> / ICollection<T> / IEnumerable<T> from List
+            if (underlyingType.IsGenericType)
+            {
+                var genericDef = underlyingType.GetGenericTypeDefinition();
+                if (genericDef == typeof(List<>) || genericDef == typeof(IList<>) ||
+                    genericDef == typeof(ICollection<>) || genericDef == typeof(IEnumerable<>))
+                {
+                    var elementType = underlyingType.GetGenericArguments()[0];
+                    var listType = typeof(List<>).MakeGenericType(elementType);
+                    var list = (IList)Activator.CreateInstance(listType)!;
+                    foreach (var item in attrValue.L)
+                    {
+                        list.Add(ConvertFromAttributeValue(item, elementType));
+                    }
+                    return list;
+                }
+            }
+
+            // Array from List
+            if (underlyingType.IsArray)
+            {
+                var elementType = underlyingType.GetElementType()!;
+                var array = Array.CreateInstance(elementType, attrValue.L.Count);
+                for (int i = 0; i < attrValue.L.Count; i++)
+                {
+                    array.SetValue(ConvertFromAttributeValue(attrValue.L[i], elementType), i);
+                }
+                return array;
+            }
+
+            // Nested class/record from Map
+            if (underlyingType.IsClass && underlyingType != typeof(string) && attrValue.M.Count > 0)
+            {
+                return MapFromAttributes(underlyingType, attrValue.M);
+            }
+
             return null;
         }
 
