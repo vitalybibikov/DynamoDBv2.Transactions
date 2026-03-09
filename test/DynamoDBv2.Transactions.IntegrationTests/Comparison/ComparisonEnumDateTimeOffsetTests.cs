@@ -7,15 +7,16 @@ using Xunit;
 namespace DynamoDBv2.Transactions.IntegrationTests.Comparison;
 
 /// <summary>
-/// Comparison tests for enum and DateTimeOffset serialization:
-/// verifies that our library stores enums and DateTimeOffset values identically to the AWS SDK.
+/// Comparison tests for enum and DateTime serialization:
+/// verifies that our library stores enums and DateTime values identically to the AWS SDK.
+/// Note: DateTimeOffset is NOT supported by DynamoDBContext — use DateTime for SDK parity tests.
 /// </summary>
 [Collection("DynamoDb")]
-public class ComparisonEnumDateTimeOffsetTests
+public class ComparisonEnumDateTimeTests
 {
     private readonly DatabaseFixture _fixture;
 
-    public ComparisonEnumDateTimeOffsetTests(DatabaseFixture fixture)
+    public ComparisonEnumDateTimeTests(DatabaseFixture fixture)
     {
         _fixture = fixture;
     }
@@ -31,7 +32,7 @@ public class ComparisonEnumDateTimeOffsetTests
             {
                 EntityId = entityId,
                 Status = IntegrationOrderStatus.Shipped,
-                CreatedAt = new DateTimeOffset(2025, 6, 15, 10, 30, 0, TimeSpan.Zero),
+                CreatedAt = new DateTime(2025, 6, 15, 10, 30, 0, DateTimeKind.Utc),
                 Description = "Lib enum write"
             });
         }
@@ -51,7 +52,7 @@ public class ComparisonEnumDateTimeOffsetTests
         {
             EntityId = entityId,
             Status = IntegrationOrderStatus.Confirmed,
-            CreatedAt = new DateTimeOffset(2025, 6, 15, 10, 30, 0, TimeSpan.Zero),
+            CreatedAt = new DateTime(2025, 6, 15, 10, 30, 0, DateTimeKind.Utc),
             Description = "SDK enum write"
         });
 
@@ -80,7 +81,7 @@ public class ComparisonEnumDateTimeOffsetTests
                 {
                     EntityId = entityId,
                     Status = status,
-                    CreatedAt = DateTimeOffset.UtcNow
+                    CreatedAt = DateTime.UtcNow
                 });
             }
 
@@ -103,7 +104,7 @@ public class ComparisonEnumDateTimeOffsetTests
             {
                 EntityId = entityId,
                 Status = status,
-                CreatedAt = DateTimeOffset.UtcNow
+                CreatedAt = DateTime.UtcNow
             });
 
             var reader = new DynamoDbReadTransactor(_fixture.Db.Client);
@@ -127,7 +128,7 @@ public class ComparisonEnumDateTimeOffsetTests
             {
                 EntityId = entityId,
                 Status = IntegrationOrderStatus.Delivered,
-                CreatedAt = DateTimeOffset.UtcNow
+                CreatedAt = DateTime.UtcNow
             });
         }
 
@@ -149,7 +150,7 @@ public class ComparisonEnumDateTimeOffsetTests
         {
             EntityId = entityId,
             Status = IntegrationOrderStatus.Pending,
-            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedAt = DateTime.UtcNow,
             Description = "Pre-patch"
         });
 
@@ -165,10 +166,10 @@ public class ComparisonEnumDateTimeOffsetTests
     }
 
     [Fact]
-    public async Task DateTimeOffset_LibWrite_SdkRead_RoundTrips()
+    public async Task DateTime_LibWrite_SdkRead_RoundTrips()
     {
         var entityId = Guid.NewGuid().ToString();
-        var createdAt = new DateTimeOffset(2025, 12, 25, 14, 30, 45, 123, TimeSpan.Zero);
+        var createdAt = new DateTime(2025, 12, 25, 14, 30, 45, 123, DateTimeKind.Utc);
 
         await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
         {
@@ -177,13 +178,12 @@ public class ComparisonEnumDateTimeOffsetTests
                 EntityId = entityId,
                 Status = IntegrationOrderStatus.Pending,
                 CreatedAt = createdAt,
-                Description = "DTO test"
+                Description = "DateTime test"
             });
         }
 
         var sdkResult = await _fixture.Db.Context.LoadAsync<EnumTestTable>(entityId);
         Assert.NotNull(sdkResult);
-        // Compare with second precision (ISO string may lose sub-ms)
         Assert.Equal(createdAt.Year, sdkResult.CreatedAt.Year);
         Assert.Equal(createdAt.Month, sdkResult.CreatedAt.Month);
         Assert.Equal(createdAt.Day, sdkResult.CreatedAt.Day);
@@ -193,17 +193,17 @@ public class ComparisonEnumDateTimeOffsetTests
     }
 
     [Fact]
-    public async Task DateTimeOffset_SdkWrite_LibRead_RoundTrips()
+    public async Task DateTime_SdkWrite_LibRead_RoundTrips()
     {
         var entityId = Guid.NewGuid().ToString();
-        var createdAt = new DateTimeOffset(2025, 7, 4, 12, 0, 0, TimeSpan.Zero);
+        var createdAt = new DateTime(2025, 7, 4, 12, 0, 0, DateTimeKind.Utc);
 
         await _fixture.Db.Context.SaveAsync(new EnumTestTable
         {
             EntityId = entityId,
             Status = IntegrationOrderStatus.Confirmed,
             CreatedAt = createdAt,
-            Description = "SDK DTO test"
+            Description = "SDK DateTime test"
         });
 
         var reader = new DynamoDbReadTransactor(_fixture.Db.Client);
@@ -221,10 +221,10 @@ public class ComparisonEnumDateTimeOffsetTests
     }
 
     [Fact]
-    public async Task DateTimeOffset_BothReadPaths_ReturnSameValue()
+    public async Task DateTime_BothReadPaths_ReturnSameValue()
     {
         var entityId = Guid.NewGuid().ToString();
-        var createdAt = new DateTimeOffset(2025, 3, 15, 8, 45, 30, TimeSpan.Zero);
+        var createdAt = new DateTime(2025, 3, 15, 8, 45, 30, DateTimeKind.Utc);
 
         await using (var writer = new DynamoDbTransactor(_fixture.Db.Client))
         {
@@ -244,7 +244,6 @@ public class ComparisonEnumDateTimeOffsetTests
 
         Assert.NotNull(sdkResult);
         Assert.NotNull(libResult);
-        // Both should agree on the stored value
         Assert.Equal(sdkResult.CreatedAt.Year, libResult.CreatedAt.Year);
         Assert.Equal(sdkResult.CreatedAt.Month, libResult.CreatedAt.Month);
         Assert.Equal(sdkResult.CreatedAt.Day, libResult.CreatedAt.Day);
@@ -265,7 +264,7 @@ public class ComparisonEnumDateTimeOffsetTests
             {
                 EntityId = entityId,
                 Status = IntegrationOrderStatus.Pending,
-                CreatedAt = DateTimeOffset.UtcNow
+                CreatedAt = DateTime.UtcNow
             });
         }
 

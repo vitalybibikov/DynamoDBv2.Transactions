@@ -667,6 +667,11 @@ namespace DynamoDBv2.Transactions
                     return byte.Parse(attrValue.N, CultureInfo.InvariantCulture);
                 }
 
+                if (underlyingType == typeof(bool))
+                {
+                    return attrValue.N != "0";
+                }
+
                 if (underlyingType.IsEnum)
                 {
                     return Enum.ToObject(underlyingType, int.Parse(attrValue.N, CultureInfo.InvariantCulture));

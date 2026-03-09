@@ -21,7 +21,7 @@ namespace DynamoDBv2.Transactions.IntegrationTests.Models
         public IntegrationOrderStatus Status { get; set; }
 
         [DynamoDBProperty("CreatedAt")]
-        public DateTimeOffset CreatedAt { get; set; }
+        public DateTime CreatedAt { get; set; }
 
         [DynamoDBProperty("Description")]
         public string Description { get; set; } = "";
