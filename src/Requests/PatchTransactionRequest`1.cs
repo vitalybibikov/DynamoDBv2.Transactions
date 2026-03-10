@@ -128,7 +128,7 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
             };
         }
 
-        Init(propertyName, attributeValue);
+        Init(propertyAttributedName, attributeValue);
     }
 
     public override Operation GetOperation()

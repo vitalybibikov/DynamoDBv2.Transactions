@@ -4,6 +4,7 @@ using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Contracts;
 using DynamoDBv2.Transactions.Requests;
 using DynamoDBv2.Transactions.Requests.Contract;
+using DynamoDBv2.Transactions.Requests.Properties;
 using DynamoDBv2.Transactions.UnitTests.Setup;
 using Moq;
 using Xunit;
@@ -710,6 +711,8 @@ public class H3_VersionAttributeRenameTests
 
 public class Fix1_CompositeKeyModelPatchTests
 {
+    // --- Model-based constructor: (T model, string propertyName) ---
+
     [Fact]
     public void PatchFromModel_CompositeKey_SetsBothKeys()
     {
@@ -736,8 +739,6 @@ public class Fix1_CompositeKeyModelPatchTests
     [Fact]
     public void PatchFromModel_CompositeKey_MissingRangeKey_Throws()
     {
-        // Range key is empty string — MapToAttribute will include it as S=""
-        // but a null range key would be skipped by MapToAttribute
         var entity = new CompositeDupEntity { Pk = "hash1", Sk = null!, Name = "Updated" };
 
         Assert.Throws<ArgumentException>(() =>
@@ -757,6 +758,280 @@ public class Fix1_CompositeKeyModelPatchTests
         Assert.Equal("h1", op.UpdateType.Key["pk"].S);
         Assert.Equal("r1", op.UpdateType.Key["sk"].S);
     }
+
+    [Fact]
+    public void PatchFromModel_CompositeKey_UpdateExpressionIsCorrect()
+    {
+        var entity = new CompositeDupEntity { Pk = "h1", Sk = "r1", Name = "NewName" };
+
+        var request = new PatchTransactionRequest<CompositeDupEntity>(entity, nameof(CompositeDupEntity.Name));
+        var op = request.GetOperation();
+
+        Assert.Equal("SET #Property = :newValue", op.UpdateType!.UpdateExpression);
+        Assert.Equal("Name", op.UpdateType.ExpressionAttributeNames["#Property"]);
+        Assert.Equal("NewName", op.UpdateType.ExpressionAttributeValues[":newValue"].S);
+    }
+
+    [Fact]
+    public void PatchFromModel_NullModel_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new PatchTransactionRequest<CompositeDupEntity>(null!, "Name"));
+    }
+
+    [Fact]
+    public void PatchFromModel_NullPropertyName_ThrowsArgumentNullException()
+    {
+        var entity = new CompositeDupEntity { Pk = "h1", Sk = "r1", Name = "Test" };
+
+        Assert.Throws<ArgumentNullException>(() =>
+            new PatchTransactionRequest<CompositeDupEntity>(entity, null!));
+    }
+
+    [Fact]
+    public void PatchFromModel_MissingHashKey_ThrowsArgumentException()
+    {
+        var entity = new CompositeDupEntity { Pk = null!, Sk = "r1", Name = "Test" };
+
+        Assert.Throws<ArgumentException>(() =>
+            new PatchTransactionRequest<CompositeDupEntity>(entity, nameof(CompositeDupEntity.Name)));
+    }
+
+    [Fact]
+    public void PatchFromModel_NullPropertyValue_UsesExplicitNull()
+    {
+        var entity = new CompositeDupEntity { Pk = "h1", Sk = "r1", Name = null! };
+
+        var request = new PatchTransactionRequest<CompositeDupEntity>(entity, nameof(CompositeDupEntity.Name));
+        var op = request.GetOperation();
+
+        Assert.True(op.UpdateType!.ExpressionAttributeValues[":newValue"].NULL);
+    }
+
+    // --- Via DynamoDbTransactor.PatchAsync ---
+
+    [Fact]
+    public async Task PatchAsync_CompositeKey_ViaTransactor_SetsBothKeys()
+    {
+        var capturedRequests = new List<ITransactionRequest>();
+        var mockManager = new Mock<ITransactionManager>();
+        mockManager.Setup(m => m.ExecuteTransactionAsync(
+                It.IsAny<IEnumerable<ITransactionRequest>>(),
+                It.IsAny<TransactionOptions?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<ITransactionRequest>, TransactionOptions?, CancellationToken>(
+                (reqs, _, _) => capturedRequests.AddRange(reqs))
+            .ReturnsAsync((TransactWriteItemsResponse?)null);
+
+        var entity = new CompositeDupEntity { Pk = "hash1", Sk = "range1", Name = "Patched" };
+
+        await using (var transactor = new DynamoDbTransactor(mockManager.Object))
+        {
+            transactor.PatchAsync(entity, nameof(CompositeDupEntity.Name));
+        }
+
+        Assert.Single(capturedRequests);
+        Assert.Equal(2, capturedRequests[0].Key.Count);
+        Assert.Equal("hash1", capturedRequests[0].Key["pk"].S);
+        Assert.Equal("range1", capturedRequests[0].Key["sk"].S);
+    }
+
+    // --- String-key constructor: (string keyValue, Property value) ---
+
+    [Fact]
+    public void PatchStringKey_Property_SetsKeyAndUpdateExpression()
+    {
+        var request = new PatchTransactionRequest<DupDetectEntity>(
+            "myKey",
+            new Property { Name = nameof(DupDetectEntity.Name), Value = "NewVal" });
+
+        Assert.Single(request.Key);
+        Assert.Equal("myKey", request.Key["EntityId"].S);
+        Assert.Equal("SET #Property = :newValue", request.UpdateExpression);
+    }
+
+    // --- Composite string-key constructor: (string, string, Property) ---
+
+    [Fact]
+    public void PatchCompositeStringKey_Property_SetsBothKeys()
+    {
+        var request = new PatchTransactionRequest<CompositeDupEntity>(
+            "h1", "r1",
+            new Property { Name = nameof(CompositeDupEntity.Name), Value = "NewVal" });
+
+        Assert.Equal(2, request.Key.Count);
+        Assert.Equal("h1", request.Key["pk"].S);
+        Assert.Equal("r1", request.Key["sk"].S);
+    }
+
+    // --- KeyValue constructor: (KeyValue, Property) ---
+
+    [Fact]
+    public void PatchKeyValue_Property_SetsKey()
+    {
+        var request = new PatchTransactionRequest<DupDetectEntity>(
+            new KeyValue { Key = nameof(DupDetectEntity.EntityId), Value = "kv1" },
+            new Property { Name = nameof(DupDetectEntity.Name), Value = "Patched" });
+
+        Assert.Single(request.Key);
+        Assert.Equal("kv1", request.Key["EntityId"].S);
+    }
+}
+
+// ──────────────────────────────────────────────
+//  ConditionCheck GetOperation() idempotency
+// ──────────────────────────────────────────────
+
+public class ConditionCheckIdempotencyTests
+{
+    [Fact]
+    public void GetOperation_CalledTwice_ProducesSameConditionExpression()
+    {
+        var request = new ConditionCheckTransactionRequest<DupDetectEntity>("key1");
+        request.Equals<DupDetectEntity, string>(x => x.Name, "Active");
+
+        var op1 = request.GetOperation();
+        var op2 = request.GetOperation();
+
+        // Both calls should produce a valid condition expression
+        Assert.NotNull(op1.ConditionCheckType!.ConditionExpression);
+        Assert.NotNull(op2.ConditionCheckType!.ConditionExpression);
+        Assert.Equal(
+            op1.ConditionCheckType.ConditionExpression,
+            op2.ConditionCheckType.ConditionExpression);
+    }
+
+    [Fact]
+    public void GetOperation_CalledTwice_MultipleConditions_NotCorrupted()
+    {
+        var request = new ConditionCheckTransactionRequest<DupDetectEntity>("key1");
+        request.Equals<DupDetectEntity, string>(x => x.Name, "Active");
+        request.NotEquals<DupDetectEntity, string>(x => x.Name, "Deleted");
+
+        var op1 = request.GetOperation();
+        var expr1 = op1.ConditionCheckType!.ConditionExpression;
+
+        var op2 = request.GetOperation();
+        var expr2 = op2.ConditionCheckType!.ConditionExpression;
+
+        // The expression should contain both conditions and not be truncated
+        Assert.Contains("AND", expr1);
+        Assert.Equal(expr1, expr2);
+    }
+
+    [Fact]
+    public void GetOperation_NoConditions_ReturnsNullExpression()
+    {
+        var request = new ConditionCheckTransactionRequest<DupDetectEntity>("key1");
+
+        var op = request.GetOperation();
+
+        Assert.Null(op.ConditionCheckType!.ConditionExpression);
+    }
+}
+
+// ──────────────────────────────────────────────
+//  Numeric deserialization parity (sbyte/ushort/uint/ulong)
+// ──────────────────────────────────────────────
+
+[DynamoDBTable("ExoticNumericTable")]
+public class ExoticNumericEntity
+{
+    [DynamoDBHashKey(AttributeName = "pk")]
+    public string Id { get; set; } = "";
+
+    public sbyte SByteValue { get; set; }
+    public ushort UShortValue { get; set; }
+    public uint UIntValue { get; set; }
+    public ulong ULongValue { get; set; }
+}
+
+public class NumericParityTests
+{
+    [Fact]
+    public void Serialize_SByte_ProducesN()
+    {
+        var attr = DynamoDbMapper.GetAttributeValue((object)(sbyte)-42);
+        Assert.NotNull(attr);
+        Assert.Equal("-42", attr!.N);
+    }
+
+    [Fact]
+    public void Serialize_UShort_ProducesN()
+    {
+        var attr = DynamoDbMapper.GetAttributeValue((object)(ushort)65535);
+        Assert.NotNull(attr);
+        Assert.Equal("65535", attr!.N);
+    }
+
+    [Fact]
+    public void Serialize_UInt_ProducesN()
+    {
+        var attr = DynamoDbMapper.GetAttributeValue((object)(uint)4_000_000_000);
+        Assert.NotNull(attr);
+        Assert.Equal("4000000000", attr!.N);
+    }
+
+    [Fact]
+    public void Serialize_ULong_ProducesN()
+    {
+        var attr = DynamoDbMapper.GetAttributeValue((object)(ulong)18_000_000_000_000_000_000);
+        Assert.NotNull(attr);
+        Assert.Equal("18000000000000000000", attr!.N);
+    }
+
+    [Fact]
+    public void Deserialize_SByte_FromN()
+    {
+        var attr = new AttributeValue { N = "-42" };
+        var result = DynamoDbMapper.ConvertFromAttributeValue(attr, typeof(sbyte));
+        Assert.Equal((sbyte)-42, result);
+    }
+
+    [Fact]
+    public void Deserialize_UShort_FromN()
+    {
+        var attr = new AttributeValue { N = "65535" };
+        var result = DynamoDbMapper.ConvertFromAttributeValue(attr, typeof(ushort));
+        Assert.Equal((ushort)65535, result);
+    }
+
+    [Fact]
+    public void Deserialize_UInt_FromN()
+    {
+        var attr = new AttributeValue { N = "4000000000" };
+        var result = DynamoDbMapper.ConvertFromAttributeValue(attr, typeof(uint));
+        Assert.Equal((uint)4_000_000_000, result);
+    }
+
+    [Fact]
+    public void Deserialize_ULong_FromN()
+    {
+        var attr = new AttributeValue { N = "18000000000000000000" };
+        var result = DynamoDbMapper.ConvertFromAttributeValue(attr, typeof(ulong));
+        Assert.Equal((ulong)18_000_000_000_000_000_000, result);
+    }
+
+    [Fact]
+    public void RoundTrip_ExoticNumericEntity()
+    {
+        var entity = new ExoticNumericEntity
+        {
+            Id = "test",
+            SByteValue = -100,
+            UShortValue = 50000,
+            UIntValue = 3_000_000_000,
+            ULongValue = 10_000_000_000_000_000_000
+        };
+
+        var attrs = DynamoDbMapper.MapToAttribute(entity);
+        var deserialized = DynamoDbMapper.MapFromAttributes<ExoticNumericEntity>(attrs);
+
+        Assert.Equal(-100, deserialized.SByteValue);
+        Assert.Equal((ushort)50000, deserialized.UShortValue);
+        Assert.Equal((uint)3_000_000_000, deserialized.UIntValue);
+        Assert.Equal((ulong)10_000_000_000_000_000_000, deserialized.ULongValue);
+    }
 }
 
 // ──────────────────────────────────────────────
@@ -765,17 +1040,17 @@ public class Fix1_CompositeKeyModelPatchTests
 
 public class Fix5_SourceGenV1BoolDeserializationTests
 {
+    // --- Source-gen path (partial AllTypesTestEntity) ---
+
     [Fact]
     public void SourceGen_BoolFromNumericN1_DeserializesTrue()
     {
-        // Simulate V1 data where bool is stored as N="1"
         var attrs = new Dictionary<string, AttributeValue>
         {
             { "pk", new AttributeValue { S = "test" } },
             { "BoolValue", new AttributeValue { N = "1" } }
         };
 
-        // AllTypesTestEntity is partial → uses source-gen path
         var entity = DynamoDbMapper.MapFromAttributes<AllTypesTestEntity>(attrs);
 
         Assert.True(entity.BoolValue);
@@ -821,5 +1096,82 @@ public class Fix5_SourceGenV1BoolDeserializationTests
         var entity = DynamoDbMapper.MapFromAttributes<AllTypesTestEntity>(attrs);
 
         Assert.True(entity.NullableBool);
+    }
+
+    [Fact]
+    public void SourceGen_NullableBoolFromNumericN0_DeserializesFalse()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "test" } },
+            { "NullableBool", new AttributeValue { N = "0" } }
+        };
+
+        var entity = DynamoDbMapper.MapFromAttributes<AllTypesTestEntity>(attrs);
+
+        Assert.NotNull(entity.NullableBool);
+        Assert.False(entity.NullableBool!.Value);
+    }
+
+    [Fact]
+    public void SourceGen_BoolFalseFromBOOL_StillWorks()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "test" } },
+            { "BoolValue", new AttributeValue { BOOL = false } }
+        };
+
+        var entity = DynamoDbMapper.MapFromAttributes<AllTypesTestEntity>(attrs);
+
+        Assert.False(entity.BoolValue);
+    }
+
+    // --- Reflection path (non-partial AllTypesReflectionEntity) ---
+
+    [Fact]
+    public void Reflection_BoolFromNumericN1_DeserializesTrue()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "test" } },
+            { "BoolValue", new AttributeValue { N = "1" } }
+        };
+
+        var entity = DynamoDbMapper.MapFromAttributes<AllTypesReflectionEntity>(attrs);
+
+        Assert.True(entity.BoolValue);
+    }
+
+    [Fact]
+    public void Reflection_BoolFromNumericN0_DeserializesFalse()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "test" } },
+            { "BoolValue", new AttributeValue { N = "0" } }
+        };
+
+        var entity = DynamoDbMapper.MapFromAttributes<AllTypesReflectionEntity>(attrs);
+
+        Assert.False(entity.BoolValue);
+    }
+
+    // --- Full round-trip with V1 conversion ---
+
+    [Fact]
+    public void V1_BoolRoundTrip_NumericFormat()
+    {
+        var entity = new AllTypesTestEntity { Id = "rt", BoolValue = true };
+
+        // V1 serializes bool as N="1"
+        var attrs = DynamoDbMapper.MapToAttribute(entity, DynamoDBEntryConversion.V1);
+
+        Assert.Equal("1", attrs["BoolValue"].N);
+
+        // Deserialize back — should handle the V1 numeric format
+        var deserialized = DynamoDbMapper.MapFromAttributes<AllTypesTestEntity>(attrs);
+
+        Assert.True(deserialized.BoolValue);
     }
 }
