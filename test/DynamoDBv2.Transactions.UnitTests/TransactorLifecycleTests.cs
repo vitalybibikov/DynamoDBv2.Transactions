@@ -263,19 +263,20 @@ namespace DynamoDBv2.Transactions.UnitTests
         }
 
         [Fact]
-        public async Task EmptyTransaction_StillCallsExecute()
+        public async Task EmptyTransaction_DoesNotCallExecute()
         {
             await using (var transactor = new DynamoDbTransactor(_mockManager.Object))
             {
                 // No operations added
             }
 
+            // Empty transactions are skipped — TransactionManager rejects them
             _mockManager.Verify(
                 m => m.ExecuteTransactionAsync(
-                    It.Is<IEnumerable<ITransactionRequest>>(r => !r.Any()),
+                    It.IsAny<IEnumerable<ITransactionRequest>>(),
                     It.IsAny<TransactionOptions?>(),
                     It.IsAny<CancellationToken>()),
-                Times.Once);
+                Times.Never);
         }
 
         [Fact]
