@@ -15,9 +15,9 @@ A high-performance .NET library for Amazon DynamoDB transactions with **compile-
 
 <p align="center">
 
-![Unit Tests](https://img.shields.io/badge/Unit_Tests-516_passed-brightgreen?logo=dotnet&logoColor=white)
+![Unit Tests](https://img.shields.io/badge/Unit_Tests-526_passed-brightgreen?logo=dotnet&logoColor=white)
 ![Integration Tests](https://img.shields.io/badge/Integration_Tests-176_passed-brightgreen?logo=docker&logoColor=white)
-![Source Generator Tests](https://img.shields.io/badge/Source_Generator-16_tests-brightgreen?logo=dotnet&logoColor=white)
+![Source Generator Tests](https://img.shields.io/badge/Source_Generator-34_tests-brightgreen?logo=dotnet&logoColor=white)
 ![Benchmarks](https://img.shields.io/badge/Benchmarks-A%2FB_validated-blue?logo=speedtest&logoColor=white)
 
 </p>
