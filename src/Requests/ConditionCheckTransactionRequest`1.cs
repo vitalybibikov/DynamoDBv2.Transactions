@@ -81,10 +81,9 @@ namespace DynamoDBv2.Transactions.Requests
 
         public override Operation GetOperation()
         {
-            if (_conditionBuilder.Length >= 5)
+            if (_conditionBuilder.Length >= 5 && string.IsNullOrEmpty(ConditionExpression))
             {
-                _conditionBuilder.Length -= 5; // trim trailing " AND "
-                ConditionExpression = _conditionBuilder.ToString();
+                ConditionExpression = _conditionBuilder.ToString(0, _conditionBuilder.Length - 5);
             }
 
             var check = new ConditionCheck

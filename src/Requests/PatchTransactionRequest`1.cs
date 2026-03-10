@@ -93,11 +93,11 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
 
         var attributes = DynamoDbMapper.MapToAttribute(model);
         var propertyAttributedName = DynamoDbMapper.GetPropertyAttributedName(ItemType, propertyName);
-        var key = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
+        var hashKeyName = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
 
-        if (!attributes.TryGetValue(key, out var keyValue))
+        if (!attributes.TryGetValue(hashKeyName, out var hashKeyValue))
         {
-            throw new ArgumentException($"Hash key '{key}' not found in mapped attributes for type {typeof(T).Name}. Ensure the hash key property is non-null.");
+            throw new ArgumentException($"Hash key '{hashKeyName}' not found in mapped attributes for type {typeof(T).Name}. Ensure the hash key property is non-null.");
         }
 
         if (!attributes.TryGetValue(propertyAttributedName, out var attributeValue))
@@ -106,7 +106,29 @@ public sealed class PatchTransactionRequest<T> : TransactionRequest
             attributeValue = new AttributeValue { NULL = true };
         }
 
-        Setup(key, keyValue, attributeValue, propertyAttributedName);
+        var rangeKeyName = DynamoDbMapper.TryGetRangeKeyAttributeName(typeof(T));
+        if (rangeKeyName != null)
+        {
+            if (!attributes.TryGetValue(rangeKeyName, out var rangeKeyValue))
+            {
+                throw new ArgumentException($"Range key '{rangeKeyName}' not found in mapped attributes for type {typeof(T).Name}. Ensure the range key property is non-null.");
+            }
+
+            Key = new Dictionary<string, AttributeValue>
+            {
+                { hashKeyName, hashKeyValue },
+                { rangeKeyName, rangeKeyValue }
+            };
+        }
+        else
+        {
+            Key = new Dictionary<string, AttributeValue>
+            {
+                { hashKeyName, hashKeyValue }
+            };
+        }
+
+        Init(propertyAttributedName, attributeValue);
     }
 
     public override Operation GetOperation()

@@ -504,7 +504,7 @@ namespace DynamoDBv2.Transactions.SourceGenerator
                 "System.Single" or "float" =>
                     $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.N != null) result.{propName} = float.Parse(__a_{propName}.N, System.Globalization.CultureInfo.InvariantCulture);",
                 "System.Boolean" or "bool" =>
-                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.BOOL.HasValue) result.{propName} = __a_{propName}.BOOL.Value;",
+                    $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName})) {{ if (__a_{propName}.BOOL.HasValue) result.{propName} = __a_{propName}.BOOL.Value; else if (__a_{propName}.N != null) result.{propName} = __a_{propName}.N != \"0\"; }}",
                 "System.DateTime" =>
                     $"if (attributes.TryGetValue(\"{attrName}\", out var __a_{propName}) && __a_{propName}.S != null) result.{propName} = DateTime.Parse(__a_{propName}.S, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AdjustToUniversal);",
                 "System.Guid" =>
