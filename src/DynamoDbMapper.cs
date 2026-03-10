@@ -456,6 +456,26 @@ namespace DynamoDBv2.Transactions
                     return byte.Parse(attrValue.N, CultureInfo.InvariantCulture);
                 }
 
+                if (underlyingType == typeof(sbyte))
+                {
+                    return sbyte.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(ushort))
+                {
+                    return ushort.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(uint))
+                {
+                    return uint.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
+                if (underlyingType == typeof(ulong))
+                {
+                    return ulong.Parse(attrValue.N, CultureInfo.InvariantCulture);
+                }
+
                 if (underlyingType == typeof(bool))
                 {
                     return attrValue.N != "0";
