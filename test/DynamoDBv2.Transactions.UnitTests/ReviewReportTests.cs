@@ -249,14 +249,15 @@ public class H5_EmptyTransactionValidationTests
     }
 
     [Fact]
-    public async Task WriteTransactionManager_ZeroItems_ReturnsNull()
+    public async Task WriteTransactionManager_ZeroItems_ThrowsArgumentException()
     {
         var mockClient = new Mock<IAmazonDynamoDB>();
         var manager = new TransactionManager(mockClient.Object);
 
-        var result = await manager.ExecuteTransactionAsync(new List<ITransactionRequest>());
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => manager.ExecuteTransactionAsync(new List<ITransactionRequest>()));
 
-        Assert.Null(result);
+        Assert.Contains("at least one item", ex.Message);
     }
 }
 
@@ -576,6 +577,108 @@ public class VersionRenameEntity
     public long? Version { get; set; }
 
     public string Name { get; set; } = "";
+}
+
+// ──────────────────────────────────────────────
+//  H1-NEW: Typed key overloads (numeric + binary)
+// ──────────────────────────────────────────────
+
+[DynamoDBTable("NumericKeyTable")]
+public class NumericKeyEntity
+{
+    [DynamoDBHashKey(AttributeName = "pk")]
+    public int Id { get; set; }
+
+    public string Name { get; set; } = "";
+}
+
+[DynamoDBTable("CompositeNumericKeyTable")]
+public class CompositeNumericKeyEntity
+{
+    [DynamoDBHashKey(AttributeName = "pk")]
+    public long Pk { get; set; }
+
+    [DynamoDBRangeKey(AttributeName = "sk")]
+    public int Sk { get; set; }
+
+    public string Name { get; set; } = "";
+}
+
+public class H1_TypedKeyOverloadTests
+{
+    [Fact]
+    public void ConditionCheck_NumericHashKey_CreatesNAttribute()
+    {
+        var request = new ConditionCheckTransactionRequest<NumericKeyEntity>((object)42);
+        Assert.Equal("42", request.Key["pk"].N);
+    }
+
+    [Fact]
+    public void ConditionCheck_CompositeNumericKey_CreatesNAttributes()
+    {
+        var request = new ConditionCheckTransactionRequest<CompositeNumericKeyEntity>((object)100L, (object)5);
+        Assert.Equal("100", request.Key["pk"].N);
+        Assert.Equal("5", request.Key["sk"].N);
+    }
+
+    [Fact]
+    public void Delete_NumericHashKey_CreatesNAttribute()
+    {
+        var request = new DeleteTransactionRequest<NumericKeyEntity>((object)99);
+        Assert.Equal("99", request.Key["pk"].N);
+    }
+
+    [Fact]
+    public void Delete_CompositeNumericKey_CreatesNAttributes()
+    {
+        var request = new DeleteTransactionRequest<CompositeNumericKeyEntity>((object)1L, (object)2);
+        Assert.Equal("1", request.Key["pk"].N);
+        Assert.Equal("2", request.Key["sk"].N);
+    }
+
+    [Fact]
+    public void Get_NumericHashKey_CreatesNAttribute()
+    {
+        var request = new GetTransactionRequest<NumericKeyEntity>((object)42);
+        Assert.Equal("42", request.Key["pk"].N);
+    }
+
+    [Fact]
+    public void Get_CompositeNumericKey_CreatesNAttributes()
+    {
+        var request = new GetTransactionRequest<CompositeNumericKeyEntity>((object)100L, (object)5);
+        Assert.Equal("100", request.Key["pk"].N);
+        Assert.Equal("5", request.Key["sk"].N);
+    }
+
+    [Fact]
+    public void ConditionCheck_StringKey_ViaObjectOverload_CreatesSAttribute()
+    {
+        var request = new ConditionCheckTransactionRequest<DupDetectEntity>((object)"my-key");
+        Assert.Equal("my-key", request.Key["EntityId"].S);
+    }
+
+    [Fact]
+    public void Get_NullKey_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new GetTransactionRequest<NumericKeyEntity>((object)null!));
+    }
+
+    [Fact]
+    public void Delete_DecimalKey_CreatesNAttribute()
+    {
+        var request = new DeleteTransactionRequest<NumericKeyEntity>((object)3.14m);
+        Assert.Equal("3.14", request.Key["pk"].N);
+    }
+
+    [Fact]
+    public void ConditionCheck_BinaryKey_CreatesBAttribute()
+    {
+        var keyBytes = new byte[] { 0x01, 0x02, 0x03 };
+        var request = new ConditionCheckTransactionRequest<NumericKeyEntity>((object)keyBytes);
+        Assert.NotNull(request.Key["pk"].B);
+    }
 }
 
 public class H3_VersionAttributeRenameTests

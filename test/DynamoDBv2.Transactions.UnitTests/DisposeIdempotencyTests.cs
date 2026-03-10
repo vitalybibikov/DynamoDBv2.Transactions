@@ -26,23 +26,24 @@ public class DisposeIdempotencyTests
     }
 
     [Fact]
-    public async Task DisposeAsync_CalledTwice_ExecutesOnlyOnce()
+    public async Task DisposeAsync_CalledTwice_NoOperations_NeverExecutes()
     {
         var transactor = new DynamoDbTransactor(_mockManager.Object);
 
         await transactor.DisposeAsync();
         await transactor.DisposeAsync();
 
+        // Empty transactions are skipped — TransactionManager rejects them
         _mockManager.Verify(
             m => m.ExecuteTransactionAsync(
                 It.IsAny<IEnumerable<ITransactionRequest>>(),
                 It.IsAny<TransactionOptions?>(),
                 It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.Never);
     }
 
     [Fact]
-    public async Task DisposeAsync_CalledThreeTimes_ExecutesOnlyOnce()
+    public async Task DisposeAsync_CalledThreeTimes_NoOperations_NeverExecutes()
     {
         var transactor = new DynamoDbTransactor(_mockManager.Object);
 
@@ -50,12 +51,13 @@ public class DisposeIdempotencyTests
         await transactor.DisposeAsync();
         await transactor.DisposeAsync();
 
+        // Empty transactions are skipped — TransactionManager rejects them
         _mockManager.Verify(
             m => m.ExecuteTransactionAsync(
                 It.IsAny<IEnumerable<ITransactionRequest>>(),
                 It.IsAny<TransactionOptions?>(),
                 It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.Never);
     }
 
     [Fact]

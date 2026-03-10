@@ -111,10 +111,10 @@ public class DynamoDbTransactorTests
         // Arrange
         var transactor = new Mock<DynamoDbTransactor>(_mockManager.Object) { CallBase = true };
 
-        // Act
+        // Act — dispose with no operations added
         await transactor.Object.DisposeAsync();
 
-        // Assert
-        _mockManager.Verify(m => m.ExecuteTransactionAsync(It.IsAny<List<ITransactionRequest>>(), It.IsAny<TransactionOptions?>(), CancellationToken.None), Times.Once);
+        // Assert — empty transactions are now skipped (fail-fast validation in TransactionManager)
+        _mockManager.Verify(m => m.ExecuteTransactionAsync(It.IsAny<List<ITransactionRequest>>(), It.IsAny<TransactionOptions?>(), CancellationToken.None), Times.Never);
     }
 }

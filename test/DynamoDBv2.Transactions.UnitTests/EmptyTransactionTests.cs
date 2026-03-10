@@ -16,18 +16,17 @@ namespace DynamoDBv2.Transactions.UnitTests;
 public class EmptyTransactionTests
 {
     [Fact]
-    public async Task ExecuteTransactionAsync_EmptyRequests_ReturnsNull_DoesNotCallDynamoDB()
+    public async Task ExecuteTransactionAsync_EmptyRequests_ThrowsArgumentException()
     {
         // Arrange
         var mockClient = new Mock<IAmazonDynamoDB>();
         var manager = new TransactionManager(mockClient.Object);
 
-        // Act
-        var result = await manager.ExecuteTransactionAsync(
-            Array.Empty<ITransactionRequest>());
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => manager.ExecuteTransactionAsync(Array.Empty<ITransactionRequest>()));
 
-        // Assert
-        Assert.Null(result);
+        Assert.Contains("at least one item", ex.Message);
         mockClient.Verify(
             c => c.TransactWriteItemsAsync(
                 It.IsAny<TransactWriteItemsRequest>(),
@@ -71,13 +70,12 @@ public class EmptyTransactionTests
         // Act — dispose without adding any operations
         await transactor.DisposeAsync();
 
-        // Assert — ExecuteTransactionAsync is still called (with empty list),
-        // but the TransactionManager itself returns null for empty requests
+        // Assert — ExecuteTransactionAsync is NOT called when there are no operations
         mockManager.Verify(
             m => m.ExecuteTransactionAsync(
                 It.IsAny<IEnumerable<ITransactionRequest>>(),
                 It.IsAny<TransactionOptions?>(),
                 It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.Never);
     }
 }
