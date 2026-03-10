@@ -703,3 +703,123 @@ public class H3_VersionAttributeRenameTests
         Assert.Equal("3", attrs["Ver"].N);
     }
 }
+
+// ──────────────────────────────────────────────
+//  FIX1: Composite-key model-based patch
+// ──────────────────────────────────────────────
+
+public class Fix1_CompositeKeyModelPatchTests
+{
+    [Fact]
+    public void PatchFromModel_CompositeKey_SetsBothKeys()
+    {
+        var entity = new CompositeDupEntity { Pk = "hash1", Sk = "range1", Name = "Updated" };
+
+        var request = new PatchTransactionRequest<CompositeDupEntity>(entity, nameof(CompositeDupEntity.Name));
+
+        Assert.Equal(2, request.Key.Count);
+        Assert.Equal("hash1", request.Key["pk"].S);
+        Assert.Equal("range1", request.Key["sk"].S);
+    }
+
+    [Fact]
+    public void PatchFromModel_HashKeyOnly_SetsSingleKey()
+    {
+        var entity = new DupDetectEntity { EntityId = "key1", Name = "Updated" };
+
+        var request = new PatchTransactionRequest<DupDetectEntity>(entity, nameof(DupDetectEntity.Name));
+
+        Assert.Single(request.Key);
+        Assert.Equal("key1", request.Key["EntityId"].S);
+    }
+
+    [Fact]
+    public void PatchFromModel_CompositeKey_MissingRangeKey_Throws()
+    {
+        // Range key is empty string — MapToAttribute will include it as S=""
+        // but a null range key would be skipped by MapToAttribute
+        var entity = new CompositeDupEntity { Pk = "hash1", Sk = null!, Name = "Updated" };
+
+        Assert.Throws<ArgumentException>(() =>
+            new PatchTransactionRequest<CompositeDupEntity>(entity, nameof(CompositeDupEntity.Name)));
+    }
+
+    [Fact]
+    public void PatchFromModel_CompositeKey_OperationContainsBothKeys()
+    {
+        var entity = new CompositeDupEntity { Pk = "h1", Sk = "r1", Name = "Patched" };
+
+        var request = new PatchTransactionRequest<CompositeDupEntity>(entity, nameof(CompositeDupEntity.Name));
+        var op = request.GetOperation();
+
+        Assert.NotNull(op.UpdateType);
+        Assert.Equal(2, op.UpdateType!.Key.Count);
+        Assert.Equal("h1", op.UpdateType.Key["pk"].S);
+        Assert.Equal("r1", op.UpdateType.Key["sk"].S);
+    }
+}
+
+// ──────────────────────────────────────────────
+//  FIX5: Source-gen V1 numeric bool deserialization
+// ──────────────────────────────────────────────
+
+public class Fix5_SourceGenV1BoolDeserializationTests
+{
+    [Fact]
+    public void SourceGen_BoolFromNumericN1_DeserializesTrue()
+    {
+        // Simulate V1 data where bool is stored as N="1"
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "test" } },
+            { "BoolValue", new AttributeValue { N = "1" } }
+        };
+
+        // AllTypesTestEntity is partial → uses source-gen path
+        var entity = DynamoDbMapper.MapFromAttributes<AllTypesTestEntity>(attrs);
+
+        Assert.True(entity.BoolValue);
+    }
+
+    [Fact]
+    public void SourceGen_BoolFromNumericN0_DeserializesFalse()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "test" } },
+            { "BoolValue", new AttributeValue { N = "0" } }
+        };
+
+        var entity = DynamoDbMapper.MapFromAttributes<AllTypesTestEntity>(attrs);
+
+        Assert.False(entity.BoolValue);
+    }
+
+    [Fact]
+    public void SourceGen_BoolFromBOOL_StillWorks()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "test" } },
+            { "BoolValue", new AttributeValue { BOOL = true } }
+        };
+
+        var entity = DynamoDbMapper.MapFromAttributes<AllTypesTestEntity>(attrs);
+
+        Assert.True(entity.BoolValue);
+    }
+
+    [Fact]
+    public void SourceGen_NullableBoolFromNumericN1_DeserializesTrue()
+    {
+        var attrs = new Dictionary<string, AttributeValue>
+        {
+            { "pk", new AttributeValue { S = "test" } },
+            { "NullableBool", new AttributeValue { N = "1" } }
+        };
+
+        var entity = DynamoDbMapper.MapFromAttributes<AllTypesTestEntity>(attrs);
+
+        Assert.True(entity.NullableBool);
+    }
+}
