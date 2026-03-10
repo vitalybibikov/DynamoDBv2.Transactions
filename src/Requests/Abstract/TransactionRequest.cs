@@ -50,6 +50,31 @@ namespace DynamoDBv2.Transactions.Requests.Abstract
 
         public abstract Operation GetOperation();
 
+        /// <summary>
+        /// Converts a key value (string, numeric, or binary) to an <see cref="AttributeValue"/>.
+        /// </summary>
+        /// <param name="keyValue">The key value to convert (string, int, long, decimal, double, float, or byte[]).</param>
+        /// <returns>The corresponding <see cref="AttributeValue"/>.</returns>
+        protected static AttributeValue ToKeyAttributeValue(object keyValue)
+        {
+            ArgumentNullException.ThrowIfNull(keyValue);
+
+            if (keyValue is string s)
+            {
+                return new AttributeValue { S = s };
+            }
+
+            var attr = DynamoDbMapper.GetAttributeValue(keyValue);
+            if (attr == null)
+            {
+                throw new ArgumentException(
+                    $"Cannot convert key value of type '{keyValue.GetType().Name}' to a DynamoDB AttributeValue.",
+                    nameof(keyValue));
+            }
+
+            return attr;
+        }
+
         protected Dictionary<string, AttributeValue> GetKey(KeyValue keyValue)
         {
             var key = new Dictionary<string, AttributeValue>

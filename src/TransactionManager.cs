@@ -118,7 +118,9 @@ public sealed class TransactionManager(IAmazonDynamoDB client)
 
         if (transactWriteItems.Count == 0)
         {
-            return null;
+            throw new ArgumentException(
+                "DynamoDB TransactWriteItems requires at least one item.",
+                nameof(requests));
         }
 
         var transactionWriteRequest = new TransactWriteItemsRequest { TransactItems = transactWriteItems };

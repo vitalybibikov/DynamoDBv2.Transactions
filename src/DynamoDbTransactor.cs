@@ -497,7 +497,7 @@ public class DynamoDbTransactor : IDynamoDbTransactor
 
         _disposed = true;
 
-        if (!ErrorDuringExecution)
+        if (!ErrorDuringExecution && Requests.Count > 0)
         {
             await _manager.ExecuteTransactionAsync(Requests, Options, default);
         }

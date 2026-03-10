@@ -15,8 +15,8 @@ A high-performance .NET library for Amazon DynamoDB transactions with **compile-
 
 <p align="center">
 
-![Unit Tests](https://img.shields.io/badge/Unit_Tests-456_passed-brightgreen?logo=dotnet&logoColor=white)
-![Integration Tests](https://img.shields.io/badge/Integration_Tests-66_passed-brightgreen?logo=docker&logoColor=white)
+![Unit Tests](https://img.shields.io/badge/Unit_Tests-516_passed-brightgreen?logo=dotnet&logoColor=white)
+![Integration Tests](https://img.shields.io/badge/Integration_Tests-176_passed-brightgreen?logo=docker&logoColor=white)
 ![Source Generator Tests](https://img.shields.io/badge/Source_Generator-16_tests-brightgreen?logo=dotnet&logoColor=white)
 ![Benchmarks](https://img.shields.io/badge/Benchmarks-A%2FB_validated-blue?logo=speedtest&logoColor=white)
 
@@ -188,6 +188,9 @@ Both strategies are transparent — the same `DynamoDbTransactor` API works with
 | **Enum & DateTimeOffset** | Native serialization of enums (as numeric `N`) and `DateTimeOffset` (as ISO string `S`) in both source-gen and reflection paths |
 | **`[DynamoDBIgnore]`** | Properties decorated with `[DynamoDBIgnore]` are excluded from serialization, deserialization, and version checks |
 | **`ReturnValuesOnConditionCheckFailure`** | All request types support `ReturnValuesOnConditionCheckFailure` for debugging failed condition expressions |
+| **Duplicate Operation Detection** | Client-side validation prevents multiple operations on the same item within a transaction — fail-fast instead of a DynamoDB round-trip |
+| **HashSet Support** | Native serialization of `HashSet<string>`, `HashSet<int>`, `HashSet<long>`, `HashSet<byte[]>` to DynamoDB SS/NS/BS set types |
+| **Long-Based Enums** | Full support for enums backed by `long`, `ulong`, `byte`, `short` — no truncation |
 | **Performance Acceptance** | CI-enforced performance gates: source-gen must be at least 1.5x faster than reflection |
 | **Source Link + Deterministic** | Step-into debugging from NuGet, reproducible builds |
 
@@ -932,7 +935,7 @@ docker-compose up --exit-code-from tests tests localstack
 docker-compose up --exit-code-from unittests unittests
 ```
 
-**Test coverage:** 456 unit tests (including 5 performance acceptance gates), 66 integration tests, 16 source generator tests — all validated in CI on every push.
+**Test coverage:** 516 unit tests (including 5 performance acceptance gates), 176 integration tests, 16 source generator tests — all validated in CI on every push.
 
 ---
 

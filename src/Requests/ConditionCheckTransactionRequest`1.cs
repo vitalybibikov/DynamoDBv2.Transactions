@@ -32,6 +32,20 @@ namespace DynamoDBv2.Transactions.Requests
         }
 
         /// <summary>
+        /// Checks condition on item by its HASH key value (supports String, Number, or Binary key types).
+        /// </summary>
+        /// <param name="keyValue">Value of the Key (string, int, long, decimal, double, float, or byte[])</param>
+        public ConditionCheckTransactionRequest(object keyValue)
+            : base(typeof(T))
+        {
+            var keyNameAttributed = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
+            Key = new Dictionary<string, AttributeValue>
+            {
+                { keyNameAttributed, ToKeyAttributeValue(keyValue) }
+            };
+        }
+
+        /// <summary>
         /// Checks condition on item by its HASH + RANGE key values.
         /// </summary>
         /// <param name="hashKeyValue">Value of the hash key.</param>
@@ -45,6 +59,23 @@ namespace DynamoDBv2.Transactions.Requests
             {
                 { hashKeyName, new AttributeValue { S = hashKeyValue } },
                 { rangeKeyName, new AttributeValue { S = rangeKeyValue } }
+            };
+        }
+
+        /// <summary>
+        /// Checks condition on item by its HASH + RANGE key values (supports String, Number, or Binary key types).
+        /// </summary>
+        /// <param name="hashKeyValue">Value of the hash key (string, int, long, decimal, double, float, or byte[])</param>
+        /// <param name="rangeKeyValue">Value of the range key (string, int, long, decimal, double, float, or byte[])</param>
+        public ConditionCheckTransactionRequest(object hashKeyValue, object rangeKeyValue)
+            : base(typeof(T))
+        {
+            var hashKeyName = DynamoDbMapper.GetHashKeyAttributeName(typeof(T));
+            var rangeKeyName = DynamoDbMapper.GetRangeKeyAttributeName(typeof(T));
+            Key = new Dictionary<string, AttributeValue>
+            {
+                { hashKeyName, ToKeyAttributeValue(hashKeyValue) },
+                { rangeKeyName, ToKeyAttributeValue(rangeKeyValue) }
             };
         }
 
