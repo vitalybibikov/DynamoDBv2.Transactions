@@ -330,13 +330,13 @@ namespace DynamoDBv2.Transactions
                 }
                 else if (value != null)
                 {
-                    if (conversion == DynamoDBEntryConversion.V2)
+                    var convertedValue = conversion == DynamoDBEntryConversion.V2
+                        ? ConvertToAttributeValueV2(value)
+                        : ConvertToAttributeValueV1(value);
+
+                    if (!IsEmptyAttributeValue(convertedValue))
                     {
-                        attributeMap[attributeName] = ConvertToAttributeValueV2(value);
-                    }
-                    else
-                    {
-                        attributeMap[attributeName] = ConvertToAttributeValueV1(value);
+                        attributeMap[attributeName] = convertedValue;
                     }
                 }
             }
@@ -633,6 +633,36 @@ namespace DynamoDBv2.Transactions
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Checks whether a DynamoDB <see cref="AttributeValue"/> is empty (has no type discriminator set).
+        /// DynamoDB rejects empty AttributeValues with: "Supplied AttributeValue is empty,
+        /// must contain exactly one of the supported datatypes".
+        /// </summary>
+        private static bool IsEmptyAttributeValue(AttributeValue value)
+        {
+            if (value.S != null || value.N != null || value.B != null)
+            {
+                return false;
+            }
+
+            if (value.IsBOOLSet || value.NULL == true)
+            {
+                return false;
+            }
+
+            if (value.M is { Count: > 0 } || value.L is { Count: > 0 })
+            {
+                return false;
+            }
+
+            if (value.SS is { Count: > 0 } || value.NS is { Count: > 0 } || value.BS is { Count: > 0 })
+            {
+                return false;
+            }
+
+            return true;
         }
 
         private static PropertyInfo[] GetCachedProperties(Type type)

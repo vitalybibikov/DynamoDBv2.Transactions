@@ -290,6 +290,35 @@ namespace DynamoDBv2.Transactions.UnitTests
         }
 
         [Fact]
+        public void MapToAttribute_EmptyAttributeValues_SkippedFromOutput()
+        {
+            // Comprehensive test: any property that would produce an empty AttributeValue
+            // (no S, N, BOOL, NULL, M, L, etc. set) must be excluded from the output
+            var entity = new GsiTestEntity
+            {
+                BucketId = "bucket-1",
+                PlayerId = "player-1",
+                Position = 0,
+                CreatedTimeUtcString = null!,
+                WasClaimed = false,
+                TTL = 0
+            };
+
+            var attributes = DynamoDbMapper.MapToAttribute(entity);
+
+            // Every value in the map must have at least one type discriminator set
+            foreach (var kv in attributes)
+            {
+                var v = kv.Value;
+                bool hasType = v.S != null || v.N != null || v.IsBOOLSet || v.NULL == true
+                    || v.B != null || (v.M != null && v.M.Count > 0)
+                    || (v.L != null && v.L.Count > 0) || (v.SS != null && v.SS.Count > 0)
+                    || (v.NS != null && v.NS.Count > 0) || (v.BS != null && v.BS.Count > 0);
+                Assert.True(hasType, $"Property '{kv.Key}' produced an empty AttributeValue");
+            }
+        }
+
+        [Fact]
         public void MapToAttribute_NullStringProperty_NotIncludedInMap()
         {
             var entity = new GsiTestEntity
