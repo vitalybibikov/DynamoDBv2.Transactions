@@ -268,6 +268,46 @@ namespace DynamoDBv2.Transactions.UnitTests
             Assert.NotEmpty(operation.PutType.Item);
         }
 
+        [Fact]
+        public void MapToAttribute_EmptyStringProperty_SerializedAsNull()
+        {
+            var entity = new GsiTestEntity
+            {
+                BucketId = "bucket-1",
+                PlayerId = "player-1",
+                Position = 2,
+                CreatedTimeUtcString = "",  // empty string
+                WasClaimed = true,
+                TTL = 100.0
+            };
+
+            var attributes = DynamoDbMapper.MapToAttribute(entity);
+
+            // Empty strings must be serialized as NULL, not as { S = "" }
+            // DynamoDB rejects empty AttributeValue: "Supplied AttributeValue is empty"
+            Assert.True(attributes["CreatedTimeUtcString"].NULL);
+            Assert.Null(attributes["CreatedTimeUtcString"].S);
+        }
+
+        [Fact]
+        public void MapToAttribute_NullStringProperty_NotIncludedInMap()
+        {
+            var entity = new GsiTestEntity
+            {
+                BucketId = "bucket-1",
+                PlayerId = "player-1",
+                Position = 2,
+                CreatedTimeUtcString = null!,
+                WasClaimed = false,
+                TTL = 100.0
+            };
+
+            var attributes = DynamoDbMapper.MapToAttribute(entity);
+
+            // Null values should not be in the attribute map
+            Assert.False(attributes.ContainsKey("CreatedTimeUtcString"));
+        }
+
         #endregion
     }
 }

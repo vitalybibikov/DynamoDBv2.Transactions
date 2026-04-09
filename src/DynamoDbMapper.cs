@@ -652,7 +652,9 @@ namespace DynamoDBv2.Transactions
             switch (value)
             {
                 case string s:
-                    return new AttributeValue { S = s };
+                    return string.IsNullOrEmpty(s)
+                        ? new AttributeValue { NULL = true }
+                        : new AttributeValue { S = s };
                 case char c:
                     return new AttributeValue { S = c.ToString() };
                 case bool b:
