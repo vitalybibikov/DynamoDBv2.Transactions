@@ -108,21 +108,27 @@ namespace DynamoDBv2.Transactions
 
                 var attributeName = property.Name;
 
-                var hashKeyAttr = property.GetCustomAttribute<DynamoDBHashKeyAttribute>();
+                // Check key attributes first (exact type match to avoid AmbiguousMatchException
+                // when a property has multiple DynamoDB attributes sharing DynamoDBPropertyAttribute base)
+                var hashKeyAttr = property.GetCustomAttributes<DynamoDBHashKeyAttribute>().FirstOrDefault();
                 if (hashKeyAttr != null && !string.IsNullOrWhiteSpace(hashKeyAttr.AttributeName))
                 {
                     attributeName = hashKeyAttr.AttributeName;
                 }
                 else
                 {
-                    var rangeKeyAttr = property.GetCustomAttribute<DynamoDBRangeKeyAttribute>();
+                    var rangeKeyAttr = property.GetCustomAttributes<DynamoDBRangeKeyAttribute>().FirstOrDefault();
                     if (rangeKeyAttr != null && !string.IsNullOrWhiteSpace(rangeKeyAttr.AttributeName))
                     {
                         attributeName = rangeKeyAttr.AttributeName;
                     }
                     else
                     {
-                        var propertyAttr = property.GetCustomAttribute<DynamoDBPropertyAttribute>();
+                        // Use GetCustomAttributes (plural) to avoid AmbiguousMatchException when
+                        // a property has both [DynamoDBProperty] and a GSI attribute (both inherit
+                        // from DynamoDBPropertyAttribute). Pick the exact DynamoDBPropertyAttribute.
+                        var propertyAttr = property.GetCustomAttributes<DynamoDBPropertyAttribute>()
+                            .FirstOrDefault(a => a.GetType() == typeof(DynamoDBPropertyAttribute));
                         if (propertyAttr != null && !string.IsNullOrWhiteSpace(propertyAttr.AttributeName))
                         {
                             attributeName = propertyAttr.AttributeName;

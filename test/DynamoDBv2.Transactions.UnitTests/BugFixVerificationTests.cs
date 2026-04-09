@@ -196,5 +196,78 @@ namespace DynamoDBv2.Transactions.UnitTests
         }
 
         #endregion
+
+        #region GSI attribute AmbiguousMatchException fix
+
+        /// <summary>
+        /// Regression test: GetPropertyAttributedName used GetCustomAttribute (singular) for
+        /// DynamoDBPropertyAttribute base class. When a property has both [DynamoDBProperty] and
+        /// a GSI attribute (both inherit from DynamoDBPropertyAttribute), the call threw
+        /// AmbiguousMatchException. Fix: use GetCustomAttributes (plural) with exact type filter.
+        /// </summary>
+        [Fact]
+        public void GetPropertyAttributedName_WithGsiAndPropertyAttributes_DoesNotThrow()
+        {
+            // CreatedTimeUtcString has both [DynamoDBGlobalSecondaryIndexRangeKey] and [DynamoDBProperty]
+            var name = DynamoDbMapper.GetPropertyAttributedName(typeof(GsiTestEntity), "CreatedTimeUtcString");
+            Assert.Equal("CreatedTimeUtcString", name);
+        }
+
+        [Fact]
+        public void GetPropertyAttributedName_WithRangeKeyAndGsiHashKey_DoesNotThrow()
+        {
+            // PlayerId has both [DynamoDBRangeKey] and [DynamoDBGlobalSecondaryIndexHashKey]
+            var name = DynamoDbMapper.GetPropertyAttributedName(typeof(GsiTestEntity), "PlayerId");
+            Assert.Equal("PlayerId", name);
+        }
+
+        [Fact]
+        public void MapToAttribute_GsiEntity_DoesNotThrow()
+        {
+            var entity = new GsiTestEntity
+            {
+                BucketId = "bucket-1",
+                PlayerId = "player-1",
+                Position = 2,
+                CreatedTimeUtcString = "2026/04/09 10:00:00.000",
+                WasClaimed = true,
+                TTL = 1861075835.0,
+                Version = 1
+            };
+
+            var attributes = DynamoDbMapper.MapToAttribute(entity);
+
+            Assert.NotEmpty(attributes);
+            Assert.Equal("bucket-1", attributes["BucketId"].S);
+            Assert.Equal("player-1", attributes["PlayerId"].S);
+            Assert.Equal("2026/04/09 10:00:00.000", attributes["CreatedTimeUtcString"].S);
+            Assert.True(attributes["WasClaimed"].BOOL);
+        }
+
+        [Fact]
+        public void PutTransactionRequest_GsiEntity_DoesNotThrowAmbiguousMatch()
+        {
+            var entity = new GsiTestEntity
+            {
+                BucketId = "bucket-1",
+                PlayerId = "player-1",
+                Position = 2,
+                CreatedTimeUtcString = "2026/04/09 10:00:00.000",
+                WasClaimed = true,
+                TTL = 1861075835.0,
+                Version = 1
+            };
+
+            // This is the exact call path that threw AmbiguousMatchException before the fix:
+            // DynamoDbTransactor.CreateOrUpdate -> PutTransactionRequest -> MapToAttribute -> GetPropertyAttributedName
+            var request = new PutTransactionRequest<GsiTestEntity>(entity);
+            var operation = request.GetOperation();
+
+            Assert.NotNull(operation.PutType);
+            Assert.Equal("GsiTestEntity", operation.PutType.TableName);
+            Assert.NotEmpty(operation.PutType.Item);
+        }
+
+        #endregion
     }
 }
