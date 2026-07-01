@@ -13,4 +13,6 @@ services:
       dockerfile: ./test/DynamoDBv2.Transactions.UnitTests/Dockerfile
   localstack:
     container_name: localstack
-    image: localstack/localstack:latest
+    # Pinned: localstack/localstack:latest now refuses to start without a Pro auth token.
+    # 3.8.1 is the last community line that serves DynamoDB with no license.
+    image: localstack/localstack:3.8.1
