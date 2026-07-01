@@ -140,6 +140,25 @@ public class SingleWriteManagerTests
     }
 
     [Fact]
+    public async Task Put_VersionedEntity_CopiesConditionAndExpressionAttributes()
+    {
+        PutItemRequest? captured = null;
+        _client.Setup(c => c.PutItemAsync(It.IsAny<PutItemRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<PutItemRequest, CancellationToken>((r, _) => captured = r)
+            .ReturnsAsync(new PutItemResponse());
+
+        var manager = new SingleWriteManager(_client.Object);
+        // OrderTestEntity carries [DynamoDBVersion], so the Put emits a version-equality condition
+        // plus its expression attribute name/value — exercising the Put condition copy-through path.
+        await manager.ExecuteAsync(new PutTransactionRequest<OrderTestEntity>(CreateOrder()));
+
+        Assert.NotNull(captured);
+        Assert.False(string.IsNullOrEmpty(captured!.ConditionExpression));
+        Assert.True(captured.ExpressionAttributeNames.Count > 0);
+        Assert.True(captured.ExpressionAttributeValues.Count > 0);
+    }
+
+    [Fact]
     public async Task Delete_DispatchesDeleteItem_WithKey()
     {
         DeleteItemRequest? captured = null;
