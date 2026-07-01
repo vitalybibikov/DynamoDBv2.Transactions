@@ -83,6 +83,33 @@ public class DynamoDbTransactor : IDynamoDbTransactor
     }
 
     /// <summary>
+    /// Patches several attributes of a single existing item in one <c>UpdateItem</c> operation,
+    /// optionally incrementing the model's <c>[DynamoDBVersion]</c> attribute atomically.
+    /// Only the listed attributes are written, so writers that touch different attributes of the
+    /// same item never conflict. With <paramref name="incrementVersion"/> the version is bumped via
+    /// <c>ADD</c> (no equality condition), so the patch never fails on a version race while still
+    /// keeping any concurrent full-object, version-checked write fail-safe (it conflicts instead of
+    /// clobbering). An <c>attribute_exists(hashKey)</c> condition ensures the item already exists.
+    /// </summary>
+    /// <param name="model">The model instance carrying the attribute values to write and the key.</param>
+    /// <param name="incrementVersion">Whether to atomically increment the version attribute.</param>
+    /// <param name="propertyNames">CLR property names of the attributes to patch.</param>
+    /// <typeparam name="T">The type of the model being patched.</typeparam>
+    public void PatchAsync<T>(T model, bool incrementVersion, params string[] propertyNames)
+    {
+        try
+        {
+            var request = new PatchManyTransactionRequest<T>(model, propertyNames, incrementVersion);
+            AddRawRequest(request);
+        }
+        catch (Exception)
+        {
+            ErrorDuringExecution = true;
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Asynchronously adds a patch operation to the transaction for a specified property using a property expression.
     /// </summary>
     /// <param name="keyValue">The key value of the item to patch.</param>
