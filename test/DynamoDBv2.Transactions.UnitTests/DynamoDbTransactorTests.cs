@@ -1,4 +1,5 @@
-﻿using Xunit;
+﻿using System.Linq;
+using Xunit;
 using Moq;
 using DynamoDBv2.Transactions;
 using DynamoDBv2.Transactions.Contracts;
@@ -64,6 +65,47 @@ public class DynamoDbTransactorTests
         Assert.True(transactor.Object.ErrorDuringExecution);
     }
 
+
+    [Fact]
+    public void PatchAsync_ManyOverload_ThrowsException_SetsErrorDuringExecutionTrue()
+    {
+        // Arrange
+        var model = new SomeDynamoDbEntity { Id = "1" };
+        var transactor = new Mock<DynamoDbTransactor>(_mockManager.Object) { CallBase = true };
+        transactor.Setup(t => t.AddRawRequest(It.IsAny<ITransactionRequest>())).Throws(new Exception());
+
+        // Act & Assert
+        Assert.Throws<Exception>(() => transactor.Object.PatchAsync(model, incrementVersion: true, "Status", "Amount"));
+        Assert.True(transactor.Object.ErrorDuringExecution);
+    }
+
+    [Fact]
+    public async Task PatchAsync_ManyOverload_EnqueuesPatchManyRequest_AndExecutesOnDispose()
+    {
+        // Arrange
+        var model = new SomeDynamoDbEntity { Id = "1", Status = "Closed", Amount = 42 };
+        List<ITransactionRequest>? captured = null;
+        _mockManager
+            .Setup(m => m.ExecuteTransactionAsync(It.IsAny<IEnumerable<ITransactionRequest>>(), It.IsAny<TransactionOptions?>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<ITransactionRequest>, TransactionOptions?, CancellationToken>((r, _, _) => captured = r.ToList())
+            .ReturnsAsync((Amazon.DynamoDBv2.Model.TransactWriteItemsResponse?)null);
+
+        // Act
+        await using (var transactor = new DynamoDbTransactor(_mockManager.Object))
+        {
+            transactor.PatchAsync(model, incrementVersion: true, "Status", "Amount");
+        }
+
+        // Assert — exactly one PatchMany request was enqueued and executed.
+        _mockManager.Verify(
+            m => m.ExecuteTransactionAsync(It.IsAny<IEnumerable<ITransactionRequest>>(), It.IsAny<TransactionOptions?>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        Assert.NotNull(captured);
+        var request = Assert.Single(captured!);
+        var patchMany = Assert.IsType<DynamoDBv2.Transactions.Requests.PatchManyTransactionRequest<SomeDynamoDbEntity>>(request);
+        Assert.StartsWith("SET ", patchMany.UpdateExpression);
+        Assert.Contains("ADD #version :increment", patchMany.UpdateExpression!);
+    }
 
     [Fact]
     public void DeleteAsync_FirstOverload_ThrowsException_SetsErrorDuringExecutionTrue()

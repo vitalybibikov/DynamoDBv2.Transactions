@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Amazon.DynamoDBv2.Model;
 using DynamoDBv2.Transactions.Requests;
 using Xunit;
 
@@ -129,6 +130,91 @@ public class PatchManyTransactionRequestTests
 
         Assert.Throws<InvalidOperationException>(() =>
             new PatchManyTransactionRequest<ProductTestEntity>(product, new[] { "Name" }, incrementVersion: true));
+    }
+
+    [Fact]
+    public void HashKeyOnlyEntity_TargetsSingleKey()
+    {
+        var product = new ProductTestEntity { ProductId = "prod-1", Name = "Widget", Price = 1m, InStock = true };
+
+        var request = new PatchManyTransactionRequest<ProductTestEntity>(
+            product,
+            new[] { "Name", "Price" },
+            incrementVersion: false);
+
+        Assert.Single(request.Key);
+        Assert.Equal("prod-1", request.Key["product_id"].S);
+    }
+
+    [Fact]
+    public void NullModel_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new PatchManyTransactionRequest<OrderTestEntity>(null!, new[] { "Status" }, incrementVersion: false));
+    }
+
+    [Fact]
+    public void NullPropertyNames_Throws()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new PatchManyTransactionRequest<OrderTestEntity>(CreateOrder(), null!, incrementVersion: false));
+    }
+
+    [Fact]
+    public void MissingHashKeyValue_Throws()
+    {
+        // A null hash-key property is skipped by MapToAttribute, so the key cannot be built.
+        var order = CreateOrder();
+        order.OrderId = null!;
+
+        Assert.Throws<ArgumentException>(() =>
+            new PatchManyTransactionRequest<OrderTestEntity>(order, new[] { "Status" }, incrementVersion: false));
+    }
+
+    [Fact]
+    public void NullValuedAttribute_IsPatchedAsExplicitNull()
+    {
+        // Name is null -> MapToAttribute skips it -> the patch must still SET it, as an explicit NULL.
+        var product = new ProductTestEntity { ProductId = "prod-1", Name = null!, Price = 1m, InStock = true };
+
+        var request = new PatchManyTransactionRequest<ProductTestEntity>(
+            product,
+            new[] { "Name" },
+            incrementVersion: false);
+
+        var nameAttr = DynamoDbMapper.GetPropertyAttributedName(typeof(ProductTestEntity), "Name");
+        string? valueToken = null;
+        foreach (var pair in request.ExpressionAttributeNames)
+        {
+            if (pair.Value == nameAttr)
+            {
+                valueToken = ":v" + pair.Key.Substring(2);
+            }
+        }
+
+        Assert.NotNull(valueToken);
+        Assert.True(request.ExpressionAttributeValues[valueToken!].NULL);
+    }
+
+    [Fact]
+    public void GetOperation_ReturnsUpdateWithExpressionsAndKey()
+    {
+        var request = new PatchManyTransactionRequest<OrderTestEntity>(
+            CreateOrder(),
+            new[] { "Status", "Total" },
+            incrementVersion: true);
+
+        var operation = request.GetOperation();
+
+        Assert.NotNull(operation);
+        Assert.IsType<Update>(operation.UpdateType);
+        var update = operation.UpdateType;
+        Assert.Equal(request.TableName, update.TableName);
+        Assert.Equal(request.UpdateExpression, update.UpdateExpression);
+        Assert.Equal("attribute_exists(#hashKey)", update.ConditionExpression);
+        Assert.Equal(2, update.Key.Count);
+        Assert.True(update.ExpressionAttributeNames.Count > 0);
+        Assert.True(update.ExpressionAttributeValues.Count > 0);
     }
 
     private static string ResolveValueToken(PatchManyTransactionRequest<OrderTestEntity> request, string attributeName)
