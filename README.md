@@ -36,6 +36,7 @@ A high-performance .NET library for Amazon DynamoDB transactions with **compile-
 ## What It Covers
 
 - Typed transactional writes through `DynamoDbTransactor`
+- Non-transactional single-item writes through `DynamoDbItemWriter` (conflict-free, 1 WCU)
 - Typed transactional reads through `DynamoDbReadTransactor`
 - Source-generated mapping for `partial` entities
 - Cached reflection fallback for existing non-partial entities
@@ -269,6 +270,25 @@ await using (var tx = new DynamoDbTransactor(client))
 }
 ```
 
+### Patch several properties (attribute-scoped)
+
+Patch multiple attributes of a single existing item in one `UpdateItem`, optionally bumping the
+`[DynamoDBVersion]` attribute atomically. Only the listed attributes are written, so writers touching
+**different** attributes of the same item never conflict. With `incrementVersion: true` the version is
+bumped via `ADD` (no equality condition), so the patch never fails on a version race yet still keeps a
+concurrent full-object, version-checked write fail-safe (it conflicts instead of clobbering). The write
+is guarded by `attribute_exists(hashKey)`, so it never creates a partial item.
+
+```csharp
+order.Status = "Shipped";
+order.ShippedAt = DateTime.UtcNow;
+
+await using (var tx = new DynamoDbTransactor(client))
+{
+    tx.PatchAsync(order, incrementVersion: true, nameof(order.Status), nameof(order.ShippedAt));
+}
+```
+
 ### Condition checks
 
 Standalone condition check:
@@ -321,6 +341,50 @@ await using (var tx = new DynamoDbTransactor(client))
     tx.CreateOrUpdate(order);
 }
 ```
+
+## Single-item writes (no transaction)
+
+`DynamoDbTransactor` always commits via `TransactWriteItems`. For a **single item** that is often
+heavier than needed: a single-item transaction can be aborted with `TransactionCanceledException`
+(`TransactionConflict`) when a concurrent non-transactional writer touches the same item, and it costs
+2× the write capacity. When you only write one item, use `IDynamoDbItemWriter` instead — it executes a
+plain `UpdateItem`/`PutItem`/`DeleteItem`:
+
+- serializes at the item level and is **never** aborted by a concurrent writer — a failed condition
+  surfaces as `ConditionalCheckFailedException`, never `TransactionCanceledException`;
+- costs 1 WCU instead of 2;
+- reuses the exact same request building as the transactor, so expressions, keys, the
+  `attribute_exists` guard and the `ADD Version` bump are identical.
+
+```csharp
+var writer = new DynamoDbItemWriter(client); // or inject IDynamoDbItemWriter
+
+// Attribute-scoped patch with an atomic version bump — conflict-free, 1 WCU:
+order.Status = "Shipped";
+order.ShippedAt = DateTime.UtcNow;
+await writer.PatchAsync(order, incrementVersion: true, nameof(order.Status), nameof(order.ShippedAt));
+
+// Other single-item operations:
+await writer.PatchAsync(order, nameof(order.Status));                 // single attribute
+await writer.PatchAsync<Order, string>("ORD-001", x => x.Status, "Shipped");
+await writer.CreateOrUpdateAsync(order);                              // plain PutItem (version-checked if versioned)
+await writer.DeleteAsync<Order>("ORD-001");                           // hash key
+await writer.DeleteAsync<OrderLine>("ORD-001", "LINE-001");           // composite key
+```
+
+Use `IDynamoDbTransactor` when two or more items must commit atomically; use `IDynamoDbItemWriter` for
+hot single-item paths. Note: `ADD Version` is not idempotent across separate successful calls (an SDK
+auto-retry of a committed-but-unacknowledged write double-bumps), so treat the version as a
+change/fencing token rather than a counted quantity.
+
+### DI registration
+
+```csharp
+services.AddSingleton<ISingleWriteManager>(sp => new SingleWriteManager(sp.GetRequiredService<IAmazonDynamoDB>()));
+services.AddScoped<IDynamoDbItemWriter, DynamoDbItemWriter>();
+```
+
+`DynamoDbItemWriter` is stateless (no accumulation, no dispose), so it is also safe to register as a singleton.
 
 ## Read API
 
@@ -502,8 +566,9 @@ This README reflects the current codebase, including a few important constraints
 - Convenience key-based APIs are string-oriented. Tables with Number or Binary keys are only partially supported today.
 - `Get` helpers currently assume string hash and range key values.
 - For composite-key patch and delete workflows, prefer explicit request constructors through `AddRawRequest()`.
-- Query, Scan, and non-transactional CRUD are out of scope.
-- Write transactions are executed on `DisposeAsync()`. If the transactor is never disposed, nothing is sent.
+- Query and Scan are out of scope.
+- Non-transactional single-item writes are supported via `IDynamoDbItemWriter` (see [Single-item writes (no transaction)](#single-item-writes-no-transaction)); multi-item writes always go through a transaction.
+- Write transactions are executed on `DisposeAsync()`. If the transactor is never disposed, nothing is sent. `IDynamoDbItemWriter` executes immediately (awaited), not on dispose.
 
 ## Development
 
