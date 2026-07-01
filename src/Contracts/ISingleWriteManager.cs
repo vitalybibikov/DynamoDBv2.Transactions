@@ -21,6 +21,7 @@ public interface ISingleWriteManager
     /// </summary>
     /// <param name="request">The single request to execute. Must be a Put/Update/Patch/Delete request.</param>
     /// <param name="token">Cancellation token.</param>
+    /// <returns>A task that represents the asynchronous write operation.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="request"/> is null.</exception>
     /// <exception cref="ArgumentException">
     /// Thrown when the request does not inherit <c>TransactionRequest</c> or is a
